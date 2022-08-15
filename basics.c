@@ -1614,8 +1614,8 @@ void load_array_template(FILE *infile, void *aptr, char *prompt, char *mode)
 			toupper_string(buf);
 			if (strcmp(buf, prompt_) == 0)
 			{
-				fpos_t current_pos;
-				fgetpos(infile, &current_pos);
+				long int current_pos;
+				current_pos = ftell(infile);
 				if (aptr != NULL)
 				{
 					if (strcmp(mode_, "double") == 0)
@@ -1639,11 +1639,11 @@ void load_array_template(FILE *infile, void *aptr, char *prompt, char *mode)
 					else if (strcmp(mode_, "char") == 0)
 					{
 						// Determine where the array data terminates
-						fpos_t end_pos;
+						long int end_pos;
 						int n_args = 1;
 						while (n_args != EOF)
 						{
-							fgetpos(infile, &end_pos);
+							end_pos = ftell(infile);
 							n_args = fscanf(infile, "%s", buf);
 							toupper_string(buf);
 							if (strcmp(buf, "END") == 0)
@@ -1657,7 +1657,7 @@ void load_array_template(FILE *infile, void *aptr, char *prompt, char *mode)
 						while (current_pos != end_pos)
 						{
 							add2array_char(a, fgetc(infile));
-							fgetpos(infile, &current_pos);
+							current_pos = ftell(infile);
 						}
 					}
 				}
