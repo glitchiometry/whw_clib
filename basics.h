@@ -356,7 +356,7 @@ double array_double_norm(double *ad, int len);
 
 char aarray_int_contains_set(aarray_int *aa, int *set, int len);
 int aarray_int_sorted_place(aarray_int *aa, int *seq, int len, char (*order_gt)(void *, void *));
-char aarray_int_contains(aarray_int *aa, int *seq, int len, char (*order_gt)(void *, void *));
+char aarray_int_sorted_contains(aarray_int *aa, int *seq, int len, char (*order_gt)(void *, void *));
 char aarray_int_contains(aarray_int *aa, int *seq, int len);
 
 int array_int_min(int *a, int len);
