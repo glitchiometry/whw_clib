@@ -222,7 +222,7 @@ typedef struct multi_int
 	double confidence;
 	double tol;
 	int dim;
-	array_bit 
+	array_bit data;
 } multivar_integrator;
 
 // Operations between splines
