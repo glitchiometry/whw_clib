@@ -311,7 +311,7 @@ approx_double approx_volume(char (*interior)(double *, void *), void *pars_, dou
 	else 
 	{
 		double interior_pt[3];
-		if (int_put == NULL)
+		if (int_pt == NULL)
 		{
 			// Find a single interior point
 			double rect_volume = 1;
@@ -357,7 +357,7 @@ approx_double approx_volume(char (*interior)(double *, void *), void *pars_, dou
 			rulims[2] = i & 1? interior_pt[2]: ulim[2];
 			// Add the approximate volumes from each subdomain
 			printf("Computing domain volume of octant %d\n", i);
-			approx_double incr = approx_volume(interior, pars_, epsilon, rllims, rulims);
+			approx_double incr = approx_volume(interior, pars_, epsilon, rllims, rulims, interior_pt);
 			printf("(done: vol = %g)\n", incr.val);
 			approx_vol.val += incr.val;
 			approx_vol.err += incr.err * incr.val;
@@ -2188,7 +2188,7 @@ void ball_overlap_spline_rev(double (*shape)(double, void *), void *shape_pars_,
 			lbnds[2] = lbnds[2] >= z_samples[0] + tolerance * rdelz? lbnds[2]: z_samples[0] + tolerance * rdelz;
 			ubnds[2] = ubnds[2] <= z_samples[N_rsamplesm1] - tolerance * rdelz? ubnds[2]: z_samples[N_rsamplesm1] - tolerance * rdelz;
 			double int_pt[3] = {0.5 * (shape(sph.x[2], shape_pars_) + sph.x[0] - sph.r), 0, sph.x[2]};
-			approx_double approx_ovl = approx_volume(interior_multiple_domain, (void *) intmpars, 0.5 * tolerance, lbnds, ubnds);
+			approx_double approx_ovl = approx_volume(interior_multiple_domain, (void *) intmpars, 0.5 * tolerance, lbnds, ubnds, int_pt);
 			novl_samples[i_p] = approx_ovl.val;
 			max_ovl = max_ovl > novl_samples[i_p]? max_ovl: novl_samples[i_p];
 		}
@@ -2716,7 +2716,7 @@ double hexagon_prism_vol(double h0, double bh0, double bh1, double h1, double bh
 	return (triangle_prism_vol_intermediate(bh0, bh1, bh2, bx0, bx1, bx2) + triangle_prism_vol_intermediate(bh0, bh2, bh3, bx0, bx2, bx3) + triangle_prism_vol_intermediate(bh0, h0, bh3, bx0, x0, bx3) + triangle_prism_vol_intermediate(bh1, h1, bh2, bx1, x1, bx2)) / 6;
 }
 
-#include "aux/numerical_fubini_case_by_thickness.h""
+#include "aux/numerical_fubini_case_by_thickness.h"
 
 // Conventions for traversing plaquette vertices, as presented in plaq_xc and plaq_yc
 // double plaq_xc[9] = {x0, x1, x2, x2, x2, x1, x0, x0, x1};
@@ -2792,6 +2792,7 @@ double integrate_2D_fubini(double (*f)(double, double, void *), void *fpars, dou
 		double ybnds[2] = {ymin1, ymax1};
 		//...
 		int iy = (int) (ybnds[0] * invdx);
+		int Nysamples = (int) ((ymax1 - ymin1) * invdx) + 1;
 		double y0 = iy * dx;
 		double y1 = y0 + dx;
 		double y2 = y1 + dx;
@@ -2854,13 +2855,13 @@ double integrate_2D_fubini(double (*f)(double, double, void *), void *fpars, dou
 						if (nplaq_stat == 8)
 						{
 							// Triangle: 1000
-							double xb[3] = {plaq_xc[plaq_trav[iii][1], plaq_yc[plaq_trav[iii][1], 0};
-							double xc[3] = {plaq_xc[plaq_trav[iii][3], plaq_yc[plaq_trav[iii][3], 0};
+							double xb[3] = {plaq_xc[plaq_trav[iii][1]], plaq_yc[plaq_trav[iii][1]], 0};
+							double xc[3] = {plaq_xc[plaq_trav[iii][3]], plaq_yc[plaq_trav[iii][3]], 0};
 							switch (iii)
 							{
+								void *inv_func_pars[4];
 								case 0: // upper right
 									xc[1] = plaq_ycul[plaq_trav[iii][3]];
-									void *inv_func_pars[4];
 									inv_func_pars[0] = (void *) y_max;
 									inv_func_pars[1] = (void *) y_max_pars;
 									inv_func_pars[2] = (void *) &xa[0];
@@ -2869,7 +2870,6 @@ double integrate_2D_fubini(double (*f)(double, double, void *), void *fpars, dou
 									break;
 								case 1: // upper left
 									xb[1] = plaq_ycul[plaq_trav[iii][1]];
-									void *inv_func_pars[4];
 									inv_func_pars[0] = (void *) y_max;
 									inv_func_pars[1] = (void *) y_max_pars;
 									inv_func_pars[2] = (void *) &xc[0];
@@ -2878,7 +2878,6 @@ double integrate_2D_fubini(double (*f)(double, double, void *), void *fpars, dou
 									break;
 								case 2: // lower left
 									xc[1] = plaq_ycll[plaq_trav[iii][3]];
-									void *inv_func_pars[4];
 									inv_func_pars[0] = (void *) y_min;
 									inv_func_pars[1] = (void *) y_min_pars;
 									inv_func_pars[2] = (void *) &xb[0];
@@ -2887,7 +2886,6 @@ double integrate_2D_fubini(double (*f)(double, double, void *), void *fpars, dou
 									break;
 								case 3: // lower right
 									xb[1] = plaq_ycll[plaq_trav[iii][1]];
-									void *inv_func_pars[4];
 									inv_func_pars[0] = (void *) y_min;
 									inv_func_pars[1] = (void *) y_min_pars;
 									inv_func_pars[2] = (void *) &xa[0];
@@ -2902,11 +2900,12 @@ double integrate_2D_fubini(double (*f)(double, double, void *), void *fpars, dou
 						else if (nplaq_stat == 12 || nplaq_stat == 9)
 						{
 							// Quadrangle: 1100, 1001
-							double xb[3] = {plaq_xc[iii][1], plaq_yc[iii][1], 0};
-							double xc[3] = {plaq_xc[iii][2], plaq_yc[iii][2], 0};
-							double xd[3] = {plaq_xc[iii][3], plaq_yc[iii][2], 0};
+							double xb[3] = {plaq_xc[plaq_trav[iii][1]], plaq_yc[plaq_trav[iii][1]], 0};
+							double xc[3] = {plaq_xc[plaq_trav[iii][2]], plaq_yc[plaq_trav[iii][2]], 0};
+							double xd[3] = {plaq_xc[plaq_trav[iii][3]], plaq_yc[plaq_trav[iii][2]], 0};
 							switch (iii)
 							{
+								void *inv_pars[4];
 								case 0:
 									if (nplaq_stat == 12) // 1100: truncated top when iii = 0
 									{
@@ -2916,7 +2915,6 @@ double integrate_2D_fubini(double (*f)(double, double, void *), void *fpars, dou
 									else // 1001: truncated right side when iii = 0
 									{
 										// Determine whether coordinates are above y_max or below y_min
-										void *inv_pars[4];
 										if (xb[1] > plaq_ycul[plaq_trav[iii][1]])
 										{
 											inv_pars[0] = (void *) y_max;
@@ -2959,7 +2957,6 @@ double integrate_2D_fubini(double (*f)(double, double, void *), void *fpars, dou
 									if (nplaq_stat == 12) // 1100: truncated side left when iii = 1
 									{
 										// Determine whether coordinates are above y_max or below y_min
-										void *inv_pars[4];
 										if (xc[1] > plaq_ycul[plaq_trav[iii][2]])
 										{
 											inv_pars[0] = (void *) y_max;
@@ -3013,7 +3010,6 @@ double integrate_2D_fubini(double (*f)(double, double, void *), void *fpars, dou
 									else // 1001: truncated left when iii = 2 (b, c)
 									{
 										// Determine whether coordinates are above y_max or below y_min
-										void *inv_pars[4];
 										if (xb[1] > plaq_ycul[plaq_trav[iii][1]])
 										{
 											inv_pars[0] = (void *) y_max;
@@ -3057,7 +3053,6 @@ double integrate_2D_fubini(double (*f)(double, double, void *), void *fpars, dou
 									if (nplaq_stat == 12) // 1100: truncated side right when iii = 3
 									{
 										// Determine whether coordinates are above y_max or below y_min
-										void *inv_pars[4];
 										if (xc[1] > plaq_ycul[plaq_trav[iii][2]])
 										{
 											inv_pars[0] = (void *) y_max;
