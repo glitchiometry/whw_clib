@@ -287,6 +287,7 @@ void extend_nbrlist_n(nbrlist *nbl, int N);
 void ensure_nbrlist_size_n(nbrlist *nbl, int N);
 void set_len_nbrlist(nbrlist *nbl, int len);
 void add_edge_nbrlist(nbrlist *nbl, int vertex1, int vertex2);
+void add_edge_nbrlist_safe(nbrlist *nbl, int vertex1, int vertex2);
 void remove_edge_nbrlist_1way(nbrlist *nbl, int vertex, int local_nbr_index);
 void remove_edge_nbrlist(nbrlist *nbl, int vertex, int local_nbr_index);
 void remove_all_edges_nbrlist(nbrlist *nbl);
