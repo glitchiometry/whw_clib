@@ -949,6 +949,26 @@ void ensure_nbrlist_size_n(nbrlist *nbl, int N)
 	}
 }
 
+void add_edge_nbrlist_safe(nbrlist *nbl, int vertex1, int vertex2)
+{
+	int vsl[2] = {vertex1, vertex2};
+	if ((*nbl).v.e[vertex1].len < (*nbl).v.e[vertex2].len) {}
+	else
+	{
+		vsl[0] = vertex2;
+		vsl[1] = vertex1;
+	}
+	for (int i = 0; i < (*nbl).v.e[vsl[0]].len; i++)
+	{
+		if ((*nbl).v.e[vsl[0]].e[i] != vsl[1]) {}
+		else
+		{
+			return;
+		}
+	}
+	add_edge_nbrlist(nbl, vertex1, vertex2);
+}
+
 void add_edge_nbrlist(nbrlist *nbl, int vertex1, int vertex2)
 {
 	add2aarray_int_elem(&((*nbl).i_of), vertex1, (*nbl).v.e[vertex2].len);
