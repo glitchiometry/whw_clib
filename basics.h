@@ -362,4 +362,17 @@ char aarray_int_contains(aarray_int *aa, int *seq, int len);
 
 int array_int_min(int *a, int len);
 int array_int_max(int *a, int len);
+
+int parse_int(void *a);
+double parse_double(void *a);
+char parse_char(void *a);
+
+array_int parse_array_int(void *a);
+array_char parse_array_char(void *a);
+array_double parse_array_double(void *a);
+array_voidstar parse_array_voidstar(void *a);
+aarray_int parse_aarray_int(void *a);
+aarray_char parse_aarray_char(void *a);
+aarray_double parse_aarray_double(void *a);
+nbrlist parse_nbrlist(void *a);
 #endif
