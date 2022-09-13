@@ -2648,3 +2648,48 @@ int array_int_max(int *a, int len)
 	}
 }
 
+int parse_int(void *a)
+{
+	return *((int *) a);
+}
+char parse_char(void *a)
+{
+	return *((char *) a);
+}
+double parse_double(void *a)
+{
+	return *((double *) a);
+}
+
+array_int parse_array_int(void *a)
+{
+	return *((array_int *) a);	
+}
+array_char parse_array_char(void *a)
+{
+	return *((array_char *) a);
+}
+array_double parse_array_double(void *a)
+{
+	return *((array_double *) a);
+}
+array_voidstar parse_array_voidstar(void *a)
+{
+	return *((array_voidstar *) a);
+}
+aarray_int parse_aarray_int(void *a)
+{
+	return *((aarray_int *) a);
+}
+aarray_char parse_aarray_char(void *a)
+{
+	return *((aarray_char *) a);
+}
+aarray_double parse_aarray_double(void *a)
+{
+	return *((aarray_double *) a);
+}
+nbrlist parse_nbrlist(void *a)
+{
+	return *((nbrlist *) a);
+}
