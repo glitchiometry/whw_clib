@@ -394,4 +394,12 @@ aarray_int parse_aarray_int(void *a);
 aarray_char parse_aarray_char(void *a);
 aarray_double parse_aarray_double(void *a);
 nbrlist parse_nbrlist(void *a);
+
+double array_double_min(double *a, int len);
+double array_double_max(double *a, int len);
+char array_char_min(char *a, int len);
+char array_char_max(char *a, int len);
+
+
+
 #endif

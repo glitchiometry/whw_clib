@@ -2781,3 +2781,59 @@ nbrlist parse_nbrlist(void *a)
 {
 	return *((nbrlist *) a);
 }
+
+double array_double_min(double *a, int len)
+{
+	double min_a = a[0];
+	for (int i = 1; i < len; i++)
+	{
+		if (a[i] >= min_a) {}
+		else
+		{
+			min_a = a[i];
+		}
+	}
+	return min_a;
+}
+
+double array_double_max(double *a, int len)
+{
+	double max_a = a[0];
+	for (int i = 1; i < len; i++)
+	{
+		if (a[i] <= max_a) {}
+		else
+		{
+			max_a = a[i];
+		}
+	}
+	return max_a;
+}
+
+char array_char_min(char *a, int len)
+{
+	char min_a = a[0];
+	for (int i = 1; i < len; i++)
+	{
+		if (a[i] >= min_a) {}
+		else
+		{
+			min_a = a[i];
+		}
+	}
+	return min_a;
+}
+
+char array_char_max(char *a, int len)
+{
+	char max_a = a[0];
+	for (int i = 1; i < len; i++)
+	{
+		if (a[i] <= max_a) {}
+		else
+		{
+			max_a = a[i];
+		}
+	}
+	return max_a;
+}
