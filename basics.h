@@ -125,6 +125,15 @@ typedef struct
 	aarray_int addr;
 } boxlist3D;
 
+// A box list with two dimensions
+typedef struct
+{
+	int m[2];
+	aarray_int boxc;
+	aarray_int addr;
+} boxlist2D;
+
+
 // A neighbor list or graph
 typedef struct
 {
@@ -274,6 +283,16 @@ void free_boxlist3D(boxlist3D *bl);
 boxlist3D boxlist3D_init(int m, int n, int o);
 void move_boxlist3D_elem(boxlist3D *bl, int elem, int ijk); 
 void reset_boxlist3D(boxlist3D *bl);
+
+// methods for 2D box lists
+void add2box2D(boxlist2D *bl, int elem, int i, int j);
+void remove_boxlist2D_elem(boxlist2D *bl, int fi, int content_index);
+void remove_boxlist2D_elem_unflat(boxlist2D *bl, int i, int j, int content_index);
+void free_boxlist2D(boxlist2D *bl);
+boxlist2D boxlist2D_init(int m, int n);
+void move_boxlist2D_elem(boxlist2D *bl, int elem, int ij); 
+void reset_boxlist2D(boxlist2D *bl);
+
 
 // methods for neighbor lists
 // RESUME: convert versions of initializers with non-void return values to void routines acting 

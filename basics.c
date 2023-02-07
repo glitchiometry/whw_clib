@@ -880,6 +880,93 @@ boxlist3D boxlist3D_init(int m, int n, int o)
 	return bl;
 }
 
+// Methods for 2D box lists
+void move_boxlist2D_elem(boxlist2D *bl, int elem, int ij)
+{
+	int eci = (*bl).addr.e[elem].e[1];
+	int old_ij = (*bl).addr.e[elem].e[0];
+	remove_array_int(&(*bl).boxc.e[old_ij], eci);
+	int l_elem = (*bl).boxc.e[old_ij].e[eci];
+	(*bl).addr.e[l_elem].e[1] = eci;
+	(*bl).addr.e[elem].e[0] = ij;
+	(*bl).addr.e[elem].e[1] = (*bl).boxc.e[ij].len;
+	add2array_int(&(*bl).boxc.e[ij], eci);
+}
+
+void reset_boxlist2D(boxlist2D *bl)
+{
+	(*bl).addr.len = 0;
+	for (int i = 0; i < (*bl).boxc.len; i++)
+	{
+		(*bl).boxc.e[i].len = 0;
+	}
+}
+
+void add2box2D(boxlist2D *bl, int elem, int i, int j)
+{
+	int ij = i + (*bl).m[0] * j;
+	array_int new_addr;
+	array_int_init(&new_addr, 3);
+	new_addr.len = 3;
+	new_addr.e[0] = ij;
+	new_addr.e[1] = (*bl).boxc.e[ij].len;
+	new_addr.e[2] = elem;
+	add2aarray_int_elem(&((*bl).boxc), ij, (*bl).addr.len);
+	add2aarray_int(&((*bl).addr), new_addr);
+}
+
+void remove_boxlist2D_elem(boxlist2D *bl, int fi, int content_index)
+{
+	if ((*bl).boxc.e[fi].len > content_index) {}
+	else
+	{
+		printf("Warning: attempting to remove nonexistent entry %d from a boxlist containing %d elements\n", content_index, (*bl).boxc.e[fi].len);
+		return;
+	}
+	int addri = (*bl).boxc.e[fi].e[content_index];
+	// Remove (*bl).addr.e[addri] by copying data from the last entry
+	(*bl).addr.len -= 1;
+	transcribe_array_int(&((*bl).addr.e[addri]), &((*bl).addr.e[(*bl).addr.len]));
+	// 	(Update the address that appears in the box specified by addr.e[addri])
+	int bi = (*bl).addr.e[addri].e[0];
+	int ci = (*bl).addr.e[addri].e[1];
+	int id_ = (*bl).addr.e[addri].e[2];
+	(*bl).boxc.e[bi].e[ci] = addri;
+	// Remove the element from the associated box
+	remove_array_int(&((*bl).boxc.e[fi]), content_index);
+	if ((*bl).boxc.e[fi].len > 0)
+	{
+		int last_addr = (*bl).boxc.e[fi].e[content_index];
+		(*bl).addr.e[last_addr].e[1] = content_index;
+	}
+}
+
+void remove_boxlist2D_elem_unflat(boxlist2D *bl, int i, int j, int content_index)
+{
+	int fi = i + (*bl).m[0] * j;
+	remove_boxlist2D_elem(bl, fi, content_index);
+}
+
+void free_boxlist2D(boxlist2D *bl)
+{
+	free_aarray_int(&((*bl).addr));
+	free_aarray_int(&((*bl).boxc));
+}
+
+boxlist2D boxlist2D_init(int m, int n)
+{
+	boxlist2D bl;
+	bl.m[0] = m;
+	bl.m[1] = n;
+	int Nboxes = m * n;
+	aarray_int_init_precise(&(bl.addr), 1, 3);
+	aarray_int_init_precise(&(bl.boxc), Nboxes, 1);
+	bl.boxc.len = Nboxes;
+	return bl;
+}
+
+
+
 // Methods for neighbor lists
 // RESUME: update all instances of nbrlists being initialized to be consistent with the new 
 //		convention.
@@ -2646,6 +2733,7 @@ int array_int_max(int *a, int len)
 			max_a = a[i];
 		}
 	}
+	return max_a;
 }
 
 int parse_int(void *a)
