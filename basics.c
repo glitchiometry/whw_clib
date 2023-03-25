@@ -79,18 +79,59 @@ void print_array_voidstar(array_voidstar a, aarray_char *fmt)
 	printf("\n");
 }
 
-void remove_array_voidstar(array_voidstar *a, int n)
+void remove_array_voidstar(array_voidstar *a, int n, void (*free_elem)(void *))
 {
 	if (n < (*a).len)
 	{
 		(*a).len -= 1;
+		if (free_elem != NULL) free_elem((*a).e[n]);
+		if ((*a).e[n] != NULL) 
+		{
+			free((*a).e[n]); // RESUME: check this!
+		}
 		(*a).e[n] = (*a).e[(*a).len];
+		(*a).e[(*a).len] = NULL;
+		if ((*a).len < (*a).mem >> 2) contract_array_voidstar(a, free_elem);
 	}
 }
 
-void free_array_voidstar(array_voidstar *a)
+// Shrink array to reduce memory usage
+void contract_array_voidstar(array_voidstar *a, void (*free_elem)(void *))
 {
-	if ((*a).e != NULL) free((*a).e);
+	if ((*a).mem > 0 && (*a).e != NULL)
+	{
+		int newsize = (*a).mem >> 1;
+		void **data = (void **) calloc(newsize, sizeof(void *));
+		int ulim = (*a).len < newsize ? (*a).len : newsize;
+		for (int i = 0; i < ulim; i++) 
+		{
+			data[i] = (*a).e[i];
+			if (free_elem != NULL) free_elem((*a).e[i]); // RESUME: check that this works with non-void destructors
+			if ((*a).e[i] != NULL) 
+			{
+				free((*a).e[i]); // RESUME: check this!
+			}
+		}
+		free((*a).e);
+		(*a).e = data;
+		(*a).mem = newsize;
+	}
+}
+
+
+void free_array_voidstar(array_voidstar *a, void (*free_elem)(void *))
+{
+	if ((*a).e != NULL) 
+	{
+		if (free_elem != NULL)
+		{
+			for (int i = 0; i < (*a).len; i++) 
+			{
+				free_elem((*a).e[i]);
+			}
+		}
+		free((*a).e);
+	}
 }
 
 void reset_array_voidstar(array_voidstar *a)
@@ -200,8 +241,27 @@ void remove_array_int(array_int *a, int n)
 	{
 		(*a).len -= 1;
 		(*a).e[n] = (*a).e[(*a).len];
+		if ((*a).len < (*a).mem >> 2) contract_array_int(a);
 	}
 }
+
+void contract_array_int(array_int *a)
+{
+	if ((*a).mem > 0 && (*a).e != NULL) 
+	{
+		int newsize = (*a).mem >> 1;
+		int *data = (int *) calloc(newsize, sizeof(int));
+		int ulim = (*a).len < newsize ? (*a).len : newsize;
+		for (int i = 0; i < ulim; i++) 
+		{
+			data[i] = (*a).e[i];
+		}
+		free((*a).e);
+		(*a).e = data;
+		(*a).mem = newsize;
+	}
+}
+
 
 void free_array_int(array_int *a)
 {
@@ -1242,8 +1302,27 @@ void remove_array_double(array_double *a, int n)
 	{
 		(*a).len -= 1;
 		(*a).e[n] = (*a).e[(*a).len];
+		if ((*a).len < (*a).mem >> 2) contract_array_double(a);
 	}
 }
+
+void contract_array_double(array_double *a)
+{
+	if ((*a).mem > 0) 
+	{
+		int newsize = (*a).mem >> 1;
+		double *data = (double *) calloc(newsize, sizeof(double));
+		int ulim = (*a).len < newsize ? (*a).len : newsize;
+		for (int i = 0; i < ulim; i++) 
+		{
+			data[i] = (*a).e[i];
+		}
+		free((*a).e);
+		(*a).e = data;
+		(*a).mem = newsize;
+	}
+}
+
 
 void free_array_double(array_double *a)
 {
@@ -1418,6 +1497,24 @@ void remove_array_char(array_char *a, int n)
 	{
 		(*a).len -= 1;
 		(*a).e[n] = (*a).e[(*a).len];
+		if ((*a).len < (*a).mem >> 2) contract_array_char(a);
+	}
+}
+
+void contract_array_char(array_char *a)
+{
+	if ((*a).mem > 0 && (*a).e != NULL) 
+	{
+		int newsize = (*a).mem >> 1;
+		char *data = (char *) calloc(newsize, sizeof(char));
+		int ulim = (*a).len < newsize ? (*a).len : newsize;
+		for (int i = 0; i < ulim; i++) 
+		{
+			data[i] = (*a).e[i];
+		}
+		free((*a).e);
+		(*a).e = data;
+		(*a).mem = newsize;
 	}
 }
 
@@ -2355,77 +2452,6 @@ char has_substring(char *str, char *sub)
 	return 0;
 }
 
-void tree_init(tree *tr)
-{
-	array_voidstar_init(&((*tr).desc), INIT_A_MEM);
-}
-
-void add_vertex_tree_top(tree *tr, int *path, int path_len, void *new_data)
-{
-	if (path_len > 0)
-	{
-		path_len -= 1;
-		add_vertex_tree_top((tree *) &((*tr).desc.e[path[path_len]]), path, path_len, new_data);
-	}
-	else
-	{
-		add_vertex_tree(tr, new_data);
-	}
-}
-
-void add_vertex_tree(tree *tr, void *new_data)
-{
-	tree *new_leaf = (tree *) calloc(1, sizeof(tree));
-	(*new_leaf).node_data = new_data;
-	tree_init(new_leaf);
-	add2array_voidstar(&((*tr).desc), (void *) new_leaf);
-}
-
-void extend_tree(tree *tr)
-{
-	add_vertex_tree(tr, NULL);
-}
-
-void extend_tree_top(tree *tr, int *path, int path_len)
-{
-	if (path_len > 0)
-	{
-		path_len -= 1;
-		extend_tree_top((tree *) &((*tr).desc.e[path[path_len]]), path, path_len);
-	}
-	else
-	{
-		extend_tree(tr);
-	}
-}
-
-void free_tree(tree *tr)
-{
-	for (int i = 0; i < (*tr).desc.len; i++)
-	{
-		free_tree((tree *) (*tr).desc.e[i]);
-	}
-	free_array_voidstar(&((*tr).desc));
-}
-
-void remove_tree(tree *tr, int i)
-{
-	remove_array_voidstar(&((*tr).desc), i);
-}
-
-void remove_tree_top(tree *tr, int *path, int path_len, int i)
-{
-	if (path_len > 0)
-	{
-		path_len -= 1;
-		remove_tree_top((tree *) &((*tr).desc.e[path[path_len]]), path, path_len, i);
-	}
-	else
-	{
-		remove_tree(tr, i);
-	}
-}
-
 void array_double_diff(double *e1, double *e2, double *e3, int len)
 {
 	for (int i = 0; i < len; i++)
@@ -2736,50 +2762,50 @@ int array_int_max(int *a, int len)
 	return max_a;
 }
 
-int parse_int(void *a)
+int *parse_int(void *a)
 {
-	return *((int *) a);
+	return ((int *) a);
 }
-char parse_char(void *a)
+char *parse_char(void *a)
 {
-	return *((char *) a);
+	return ((char *) a);
 }
-double parse_double(void *a)
+double *parse_double(void *a)
 {
-	return *((double *) a);
+	return ((double *) a);
 }
 
-array_int parse_array_int(void *a)
+array_int *parse_array_int(void *a)
 {
-	return *((array_int *) a);	
+	return ((array_int *) a);	
 }
-array_char parse_array_char(void *a)
+array_char *parse_array_char(void *a)
 {
-	return *((array_char *) a);
+	return ((array_char *) a);
 }
-array_double parse_array_double(void *a)
+array_double *parse_array_double(void *a)
 {
-	return *((array_double *) a);
+	return ((array_double *) a);
 }
-array_voidstar parse_array_voidstar(void *a)
+array_voidstar *parse_array_voidstar(void *a)
 {
-	return *((array_voidstar *) a);
+	return ((array_voidstar *) a);
 }
-aarray_int parse_aarray_int(void *a)
+aarray_int *parse_aarray_int(void *a)
 {
-	return *((aarray_int *) a);
+	return ((aarray_int *) a);
 }
-aarray_char parse_aarray_char(void *a)
+aarray_char *parse_aarray_char(void *a)
 {
-	return *((aarray_char *) a);
+	return ((aarray_char *) a);
 }
-aarray_double parse_aarray_double(void *a)
+aarray_double *parse_aarray_double(void *a)
 {
-	return *((aarray_double *) a);
+	return ((aarray_double *) a);
 }
-nbrlist parse_nbrlist(void *a)
+nbrlist *parse_nbrlist(void *a)
 {
-	return *((nbrlist *) a);
+	return ((nbrlist *) a);
 }
 
 double array_double_min(double *a, int len)

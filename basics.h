@@ -1,3 +1,9 @@
+/*
+Sources: 
+	* Algorithms 4th Edition (Sedgewick & Wayne): 
+		* Data structures: resizable arrays, heaps, queues, stacks, hash functions, etc.
+*/
+
 #ifndef BASICS_H
 #define BASICS_H
 #include "stdio.h"
@@ -17,12 +23,6 @@ typedef struct
 	int mem;
 	int len;
 } array_voidstar;
-
-typedef struct
-{
-	array_voidstar desc;
-	void *node_data;
-} tree;
 
 typedef struct
 {
@@ -155,8 +155,9 @@ void add_mem_array_voidstar(array_voidstar *a);
 void add_mem_array_voidstar_until(array_voidstar *a, int i);
 void add2array_voidstar(array_voidstar *a, void *i);
 void print_array_voidstar(array_voidstar a, aarray_char *format);
-void remove_array_voidstar(array_voidstar *a, int n);
-void free_array_voidstar(array_voidstar *a);
+void remove_array_voidstar(array_voidstar *a, int n, void (*free_elem)(void *));
+void contract_array_voidstar(array_voidstar *a, void (*free_elem)(void *));
+void free_array_voidstar(array_voidstar *a, void (*free_elem)(void *));
 void reset_array_voidstar(array_voidstar *a);
 void transcribe_array_voidstar(array_voidstar *a, array_voidstar *b);
 void merge_array_voidstar(array_voidstar *a, void **e, int *c, int imin, int imax, int jmin, int jmax, char (*order)(void *, void *));
@@ -171,6 +172,7 @@ void add_mem_array_int_until(array_int *a, int i);
 void add2array_int(array_int *a, int i);
 void print_array_int(array_int a);
 void remove_array_int(array_int *a, int n);
+void contract_array_int(array_int *a);
 void free_array_int(array_int *a);
 void reset_array_int(array_int *a);
 void transcribe_array_int(array_int *a, array_int *b);
@@ -184,6 +186,7 @@ void add_mem_array_double_until(array_double *a, int i);
 void add2array_double(array_double *a, double i);
 void print_array_double(array_double a);
 void remove_array_double(array_double *a, int n);
+void contract_array_double(array_double *a);
 void free_array_double(array_double *a);
 void reset_array_double(array_double *a);
 void transcribe_array_double(array_double *a, array_double *b);
@@ -199,6 +202,7 @@ void add_mem_array_char_until(array_char *a, int i);
 void add2array_char(array_char *a, char i);
 void print_array_char(array_char a);
 void remove_array_char(array_char *a, int n);
+void contract_array_char(array_char *a);
 void free_array_char(array_char *a);
 void reset_array_char(array_char *a);
 void transcribe_array_char(array_char *a, array_char *b);
@@ -361,15 +365,6 @@ char order_induced_voidstar_lexical_array_double(void *a, void *b);
 char order_induced_voidstar_lexical_array_int(void *a, void *b);
 char order_induced_voidstar_lexical_array_char(void *a, void *b);
 
-void tree_init(tree *tr);
-void add_vertex_tree_top(tree *tr, int *path, int path_len, void *new_data);
-void add_vertex_tree(tree *tr, void *new_data);
-void extend_tree(tree *tr);
-void extend_tree_top(tree *tr, int *path, int path_len);
-void free_tree(tree *tr);
-void remove_tree(tree *tr, int i);
-void remove_tree_top(tree *tr, int *path, int path_len, int i);
-
 void array_double_diff(double *e1, double *e2, double *e3, int len);
 double array_double_dot(double *e1, double *e2, int len);
 double array_double_norm(double *ad, int len);
@@ -382,18 +377,18 @@ char aarray_int_contains(aarray_int *aa, int *seq, int len);
 int array_int_min(int *a, int len);
 int array_int_max(int *a, int len);
 
-int parse_int(void *a);
-double parse_double(void *a);
-char parse_char(void *a);
+int *parse_int(void *a);
+double *parse_double(void *a);
+char *parse_char(void *a);
 
-array_int parse_array_int(void *a);
-array_char parse_array_char(void *a);
-array_double parse_array_double(void *a);
-array_voidstar parse_array_voidstar(void *a);
-aarray_int parse_aarray_int(void *a);
-aarray_char parse_aarray_char(void *a);
-aarray_double parse_aarray_double(void *a);
-nbrlist parse_nbrlist(void *a);
+array_int *parse_array_int(void *a);
+array_char *parse_array_char(void *a);
+array_double *parse_array_double(void *a);
+array_voidstar *parse_array_voidstar(void *a);
+aarray_int *parse_aarray_int(void *a);
+aarray_char *parse_aarray_char(void *a);
+aarray_double *parse_aarray_double(void *a);
+nbrlist *parse_nbrlist(void *a);
 
 double array_double_min(double *a, int len);
 double array_double_max(double *a, int len);
