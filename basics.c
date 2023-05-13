@@ -84,9 +84,9 @@ void remove_array_voidstar(array_voidstar *a, int n, void (*free_elem)(void *))
 	if (n < (*a).len)
 	{
 		(*a).len -= 1;
-		if (free_elem != NULL) free_elem((*a).e[n]);
 		if ((*a).e[n] != NULL) 
 		{
+			if (free_elem != NULL) free_elem((*a).e[n]);
 			free((*a).e[n]); // RESUME: check this!
 		}
 		(*a).e[n] = (*a).e[(*a).len];
