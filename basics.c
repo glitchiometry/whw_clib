@@ -100,7 +100,7 @@ void contract_array_voidstar(array_voidstar *a, void (*free_elem)(void *))
 {
 	if ((*a).mem > 0 && (*a).e != NULL)
 	{
-		int newsize = (*a).mem >> 1;
+		int newsize = (*a).mem >>= 1;
 		void **data = (void **) calloc(newsize, sizeof(void *));
 		int ulim = (*a).len < newsize ? (*a).len : newsize;
 		for (int i = 0; i < ulim; i++) 
@@ -344,9 +344,10 @@ void sort_array_int(array_int *a)
 }
 
 // methods for variable length arrays of variable length arrays
+// aarray_int #beginning
 void aarray_int_init(aarray_int *aa, int mem)
 {
-	aarray_int_init_precise(aa, mem, INIT_A_MEM);
+	aarray_int_init_precise(aa, mem, 0);
 }
 
 // An alternative to the last method that can be tuned to improve performance
@@ -363,39 +364,17 @@ void aarray_int_init_precise(aarray_int *aa, int mem1, int mem2)
 
 void add_mem_aarray_int(aarray_int *aa)
 {
+	int init_mem = (*aa).mem;
 	if ((*aa).mem > 0) {}
 	else (*aa).mem = 1;
 	(*aa).mem <<= 1;
 	array_int *ne = (array_int *) calloc((*aa).mem, sizeof(array_int));
-	for (int i = 0; i < (*aa).len; i++)
+	int i = 0;
+	while ((*aa).e[i].mem > 0 && i < init_mem)
 	{
-		ne[i] = (*aa).e[i]; // RESUME: CHECK THAT THIS ALSO COPIES REFERENCES TO ARRAYS
-		// ne[i].len = (*aa).e[i].len;
-		// ne[i].mem = (*aa).e[i].mem;
+		ne[i] = (*aa).e[i];
 	}
-	for (int i = (*aa).len; i < (*aa).mem; i++)
-	{
-		ne[i].e = NULL;
-		ne[i].mem = 0;
-		ne[i].len = 0;
-	}
-	if ((*aa).e != NULL) free((*aa).e);
-	(*aa).e = ne;
-}
-
-void add_mem_aarray_int_until(aarray_int *aa, int i)
-{
-	if ((*aa).mem > 0) {}
-	else (*aa).mem = 1;
-	while ((*aa).mem <= i) (*aa).mem <<= 1;
-	array_int *ne = (array_int *) calloc((*aa).mem, sizeof(array_int));
-	for (int ii = 0; ii < (*aa).len; ii++)
-	{
-		ne[ii] = (*aa).e[ii]; // RESUME: CHECK THIS
-		// ne[ii].len = (*aa).e[ii].len;
-		// ne[ii].mem = (*aa).e[ii].mem;
-	}
-	for (int ii = (*aa).len; ii < (*aa).mem; ii++)
+	for (int ii = i; ii < (*aa).mem; ii++)
 	{
 		ne[ii].e = NULL;
 		ne[ii].mem = 0;
@@ -405,7 +384,34 @@ void add_mem_aarray_int_until(aarray_int *aa, int i)
 	(*aa).e = ne;
 }
 
+void add_mem_aarray_int_until(aarray_int *aa, int i)
+{
+	int init_mem = (*aa).mem;
+	if ((*aa).mem > 0) {}
+	else (*aa).mem = 1;
+	while ((*aa).mem <= i) (*aa).mem <<= 1;
+	array_int *ne = (array_int *) calloc((*aa).mem, sizeof(array_int));
+	int ii = 0; 
+	while (ii < init_mem && (*aa).e[ii].mem > 0)
+	{
+		ne[ii] = (*aa).e[ii];
+	}
+	for (int i = ii; i < (*aa).mem; i++)
+	{
+		ne[i].e = NULL;
+		ne[i].mem = 0;
+		ne[i].len = 0;
+	}
+	if ((*aa).e != NULL) free((*aa).e);
+	(*aa).e = ne;
+}
+
 void extend_aarray_int(aarray_int *aa)
+{
+	extend_aarray_int_precise(aa, INIT_A_MEM);
+}
+
+void extend_aarray_int_precise(aarray_int *aa, int init_mem)
 {
 	if ((*aa).len == (*aa).mem)
 	{
@@ -417,22 +423,25 @@ void extend_aarray_int(aarray_int *aa)
 	}
 	else
 	{
-		(*aa).e[(*aa).len].e = (int *) calloc(1, sizeof(int));
-		(*aa).e[(*aa).len].mem = 1;
-		(*aa).e[(*aa).len].len = 0;
+		array_int_init(&((*aa).e[(*aa).len]), init_mem);
 	}
 	(*aa).len += 1;
+
 }
 
 // Check this!
 void add2aarray_int(aarray_int *aa, array_int a)
 {
+	if (a.mem > 0) {}
+	else 
+	{
+		printf("Error: attempting to add empty array_int to array of array_int (aarray_int.)\n");
+		exit(EXIT_FAILURE);
+	}
 	if ((*aa).len == (*aa).mem)
 	{
 		add_mem_aarray_int(aa);
 	}
-	// Make sure that there is room for 'a' in (*aa).e[(*aa).len]:
-	//transcribe_array_int(&(*aa).e[(*aa).len], &a); // Is it necessary to transcribe the array completely, or is it enough to copy the values of 'a' itself?
 	if ((*aa).e[(*aa).len].mem == 0) {}
 	else free_array_int(&(*aa).e[(*aa).len]);
 	(*aa).e[(*aa).len] = a;
@@ -452,17 +461,15 @@ void remove_aarray_int(aarray_int *aa, int i)
 	array_int aux = (*aa).e[i];
 	(*aa).e[i] = (*aa).e[(*aa).len];
 	(*aa).e[(*aa).len] = aux;
-	reset_aarray_int_elem((*aa).len, aa);	
-	free((*aa).e[(*aa).len].e);
-	(*aa).e[(*aa).len].mem = 0;
-	(*aa).e[(*aa).len].len = 0;
+	reset_aarray_int_elem((*aa).len, aa);
 }
 
 void free_aarray_int(aarray_int *aa)
 {
-	for (int i = 0; i < (*aa).mem; i++)
+	int i = 0;
+	while (i < (*aa).mem && (*aa).e[i].mem > 0)
 	{
-		free_array_int(&((*aa).e[i])); // RESUME: CHECK THIS FOR CONSISTENCY WITH NEW AARRAY FORMAT
+		free_array_int(&((*aa).e[i]));
 	}
 	free((*aa).e);
 }
@@ -479,6 +486,8 @@ void print_aarray_int(aarray_int aa)
 	}
 }
 
+// aarray_int #ending
+// aarray_double #beginning
 void aarray_double_init(aarray_double *aa, int mem)
 {
 	aarray_double_init_precise(aa, mem, INIT_A_MEM);
@@ -603,6 +612,7 @@ void print_aarray_double(aarray_double aa)
 		printf("\n");
 	}
 }
+// aarray_double #ending
 
 // Methods for linked lists
 linked_list linked_list_init()
@@ -1600,6 +1610,7 @@ void sort_array_char(array_char *a)
 	(*a).e = e;
 }
 
+// aarray_char #beginning
 void aarray_char_init(aarray_char *aa, int mem)
 {
 	aarray_char_init_precise(aa, mem, INIT_A_MEM);
@@ -1740,6 +1751,7 @@ void print_aarray_char(aarray_char aa)
 		printf("\n");
 	}
 }
+// aarray_char #ending
 
 char one_bit(char *a, int *b)
 {
