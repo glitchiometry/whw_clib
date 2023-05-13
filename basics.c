@@ -100,16 +100,26 @@ void contract_array_voidstar(array_voidstar *a, void (*free_elem)(void *))
 {
 	if ((*a).mem > 0 && (*a).e != NULL)
 	{
-		int newsize = (*a).mem >>= 1;
+		int newsize = (*a).mem >> 1;
 		void **data = (void **) calloc(newsize, sizeof(void *));
 		int ulim = (*a).len < newsize ? (*a).len : newsize;
 		for (int i = 0; i < ulim; i++) 
 		{
 			data[i] = (*a).e[i];
-			if (free_elem != NULL) free_elem((*a).e[i]); // RESUME: check that this works with non-void destructors
-			if ((*a).e[i] != NULL) 
+		}
+		for (int i = ulim; i < newsize; i++)
+		{
+			data[i] = NULL;
+		}
+		if (free_elem != NULL)
+		{
+			for (int i = 0; i < (*a).mem; i++)
 			{
-				free((*a).e[i]); // RESUME: check this!
+				if ((*a).e[i] != NULL) 
+				{
+					free_elem((*a).e[i]);
+					free((*a).e[i]); // RESUME: check this!
+				}
 			}
 		}
 		free((*a).e);
@@ -127,7 +137,11 @@ void free_array_voidstar(array_voidstar *a, void (*free_elem)(void *))
 		{
 			for (int i = 0; i < (*a).len; i++) 
 			{
-				free_elem((*a).e[i]);
+				if ((*a).e[i] != NULL) 
+				{
+					free_elem((*a).e[i]);
+					free((*a).e[i]);
+				}
 			}
 		}
 		free((*a).e);
@@ -237,7 +251,7 @@ void print_array_int(array_int a)
 
 void remove_array_int(array_int *a, int n)
 {
-	if (n < (*a).len)
+	if (n < (*a).len && n > -1)
 	{
 		(*a).len -= 1;
 		(*a).e[n] = (*a).e[(*a).len];
@@ -384,6 +398,27 @@ void add_mem_aarray_int(aarray_int *aa)
 	(*aa).e = ne;
 }
 
+void contract_aarray_int(aarray_int *aa)
+{
+	if ((*a).mem > 0 && (*a).e != NULL)
+	{
+		int newsize = (*a).mem >> 1;
+		array_int *data = (array_int *) calloc(newsize, sizeof(array_int));
+		int ulim = (*a).len < newsize ? (*a).len : newsize;
+		for (int i = 0; i < ulim; i++) 
+		{
+			data[i] = (*a).e[i];
+		}
+		for (int i = ulim; i < newsize; i++)
+		{
+			data[i] = (*a).e[i];
+		}
+		free((*a).e);
+		(*a).e = data;
+		(*a).mem = newsize;
+	}
+}
+
 void add_mem_aarray_int_until(aarray_int *aa, int i)
 {
 	int init_mem = (*aa).mem;
@@ -429,7 +464,7 @@ void extend_aarray_int_precise(aarray_int *aa, int init_mem)
 
 }
 
-// Check this!
+// RESUME: Check this! 001
 void add2aarray_int(aarray_int *aa, array_int a)
 {
 	if (a.mem > 0) {}
@@ -443,7 +478,12 @@ void add2aarray_int(aarray_int *aa, array_int a)
 		add_mem_aarray_int(aa);
 	}
 	if ((*aa).e[(*aa).len].mem == 0) {}
-	else free_array_int(&(*aa).e[(*aa).len]);
+	else 
+	{
+		// NOTE: alternatively, consider swapping the last element of aa with the next NULL element in 
+		// 	memory, which might improve performance in some settings.
+		free_array_int(&(*aa).e[(*aa).len]);
+	}
 	(*aa).e[(*aa).len] = a;
 	(*aa).len += 1;
 }
@@ -456,12 +496,22 @@ void reset_aarray_int_elem(int i, aarray_int *aa)
 // RESUME: test this
 void remove_aarray_int(aarray_int *aa, int i)
 {
-	(*aa).len -= 1;
-	// transcribe the last element of (*aa) onto the i-th element
-	array_int aux = (*aa).e[i];
-	(*aa).e[i] = (*aa).e[(*aa).len];
-	(*aa).e[(*aa).len] = aux;
-	reset_aarray_int_elem((*aa).len, aa);
+	if (i < (*aa).len && i > -1)
+	{
+		(*aa).len -= 1;
+		// transcribe the last element of (*aa) onto the i-th element
+		array_int aux = (*aa).e[i];
+		(*aa).e[i] = (*aa).e[(*aa).len];
+		(*aa).e[(*aa).len] = aux;
+		reset_aarray_int_elem((*aa).len, aa);
+		if ((*aa).len > (*aa).mem >> 2) {}
+		else contract_aarray_int(aa);
+	}
+	else 
+	{
+		printf("Error: attempting to remove non-existent aarray_int element %d of %d\n", i, (*aa).len);
+		exit(EXIT_FAILURE);
+	}
 }
 
 void free_aarray_int(aarray_int *aa)
@@ -470,6 +520,7 @@ void free_aarray_int(aarray_int *aa)
 	while (i < (*aa).mem && (*aa).e[i].mem > 0)
 	{
 		free_array_int(&((*aa).e[i]));
+		free(&((*aa).e[i])); // RESUME: Check this! 000
 	}
 	free((*aa).e);
 }
