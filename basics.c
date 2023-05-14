@@ -538,10 +538,11 @@ void print_aarray_int(aarray_int aa)
 }
 
 // aarray_int #ending
+
 // aarray_double #beginning
 void aarray_double_init(aarray_double *aa, int mem)
 {
-	aarray_double_init_precise(aa, mem, INIT_A_MEM);
+	aarray_double_init_precise(aa, mem, 0);
 }
 
 // An alternative to the last method that can be tuned to improve performance
@@ -558,43 +559,75 @@ void aarray_double_init_precise(aarray_double *aa, int mem1, int mem2)
 
 void add_mem_aarray_double(aarray_double *aa)
 {
+	int init_mem = (*aa).mem;
+	if ((*aa).mem > 0) {}
+	else (*aa).mem = 1;
 	(*aa).mem <<= 1;
 	array_double *ne = (array_double *) calloc((*aa).mem, sizeof(array_double));
-	for (int i = 0; i < (*aa).len; i++)
+	int i = 0;
+	while ((*aa).e[i].mem > 0 && i < init_mem)
 	{
-		ne[i].e = (*aa).e[i].e;
-		ne[i].len = (*aa).e[i].len;
-		ne[i].mem = (*aa).e[i].mem;
+		ne[i] = (*aa).e[i];
 	}
-	for (int i = (*aa).len; i < (*aa).mem; i++)
+	for (int ii = i; ii < (*aa).mem; ii++)
 	{
-		ne[i].e = NULL;
-		ne[i].mem = 0;
+		ne[ii].e = NULL;
+		ne[ii].mem = 0;
+		ne[ii].len = 0;
 	}
-	free((*aa).e);
+	if ((*aa).e != NULL) free((*aa).e);
 	(*aa).e = ne;
+}
+
+void contract_aarray_double(aarray_double *aa)
+{
+	if ((*a).mem > 0 && (*a).e != NULL)
+	{
+		int newsize = (*a).mem >> 1;
+		array_double *data = (array_double *) calloc(newsize, sizeof(array_double));
+		int ulim = (*a).len < newsize ? (*a).len : newsize;
+		for (int i = 0; i < ulim; i++) 
+		{
+			data[i] = (*a).e[i];
+		}
+		for (int i = ulim; i < newsize; i++)
+		{
+			data[i] = (*a).e[i];
+		}
+		free((*a).e);
+		(*a).e = data;
+		(*a).mem = newsize;
+	}
 }
 
 void add_mem_aarray_double_until(aarray_double *aa, int i)
 {
+	int init_mem = (*aa).mem;
+	if ((*aa).mem > 0) {}
+	else (*aa).mem = 1;
 	while ((*aa).mem <= i) (*aa).mem <<= 1;
 	array_double *ne = (array_double *) calloc((*aa).mem, sizeof(array_double));
-	for (int ii = 0; ii < (*aa).len; ii++)
+	int ii = 0; 
+	while (ii < init_mem && (*aa).e[ii].mem > 0)
 	{
-		ne[ii].e = (*aa).e[ii].e;
-		ne[ii].len = (*aa).e[ii].len;
-		ne[ii].mem = (*aa).e[ii].mem;
+		ne[ii] = (*aa).e[ii];
 	}
-	for (int ii = (*aa).len; ii < (*aa).mem; ii++)
+	for (int i = ii; i < (*aa).mem; i++)
 	{
-		ne[ii].e = NULL;
-		ne[ii].mem = 0;
+		ne[i].e = NULL;
+		ne[i].mem = 0;
+		ne[i].len = 0;
 	}
-	free((*aa).e);
+	if ((*aa).e != NULL) free((*aa).e);
 	(*aa).e = ne;
 }
 
 void extend_aarray_double(aarray_double *aa)
+{
+	extend_aarray_double_precise(aa, INIT_A_MEM);
+}
+
+void extend_aarray_double_precise(aarray_double *aa, int init_mem)
 {
 	if ((*aa).len == (*aa).mem)
 	{
@@ -606,22 +639,32 @@ void extend_aarray_double(aarray_double *aa)
 	}
 	else
 	{
-		(*aa).e[(*aa).len].e = (double *) calloc(1, sizeof(double));
-		(*aa).e[(*aa).len].mem = 1;
-		(*aa).e[(*aa).len].len = 0;
+		array_double_init(&((*aa).e[(*aa).len]), init_mem);
 	}
 	(*aa).len += 1;
+
 }
 
-void add2aarray_double(aarray_double *aa, array_double a) // RESUME: ensure consistency across all programs
+// RESUME: Check this! 001
+void add2aarray_double(aarray_double *aa, array_double a)
 {
+	if (a.mem > 0) {}
+	else 
+	{
+		printf("Error: attempting to add empty array_double to array of array_double (aarray_double.)\n");
+		exit(EXIT_FAILURE);
+	}
 	if ((*aa).len == (*aa).mem)
 	{
 		add_mem_aarray_double(aa);
 	}
-	//transcribe_array_double(&((*aa).e[(*aa).len]), &a);
 	if ((*aa).e[(*aa).len].mem == 0) {}
-	else free_array_double(&(*aa).e[(*aa).len]);
+	else 
+	{
+		// NOTE: alternatively, consider swapping the last element of aa with the next NULL element in 
+		// 	memory, which might improve performance in some settings.
+		free_array_double(&(*aa).e[(*aa).len]);
+	}
 	(*aa).e[(*aa).len] = a;
 	(*aa).len += 1;
 }
@@ -631,23 +674,34 @@ void reset_aarray_double_elem(int i, aarray_double *aa)
 	reset_array_double(&((*aa).e[i]));
 }
 
+// RESUME: test this
 void remove_aarray_double(aarray_double *aa, int i)
 {
-	(*aa).len -= 1;
-	array_double aux_array = (*aa).e[i];
-	(*aa).e[i] = (*aa).e[(*aa).len];
-	(*aa).e[(*aa).len] = aux_array;
-	reset_aarray_double_elem((*aa).len, aa);
-	free((*aa).e[(*aa).len].e);
-	(*aa).e[(*aa).len].mem = 0;
-	(*aa).e[(*aa).len].len = 0;
+	if (i < (*aa).len && i > -1)
+	{
+		(*aa).len -= 1;
+		// transcribe the last element of (*aa) onto the i-th element
+		array_double aux = (*aa).e[i];
+		(*aa).e[i] = (*aa).e[(*aa).len];
+		(*aa).e[(*aa).len] = aux;
+		reset_aarray_double_elem((*aa).len, aa);
+		if ((*aa).len > (*aa).mem >> 2) {}
+		else contract_aarray_double(aa);
+	}
+	else 
+	{
+		printf("Error: attempting to remove non-existent aarray_double element %d of %d\n", i, (*aa).len);
+		exit(EXIT_FAILURE);
+	}
 }
 
 void free_aarray_double(aarray_double *aa)
 {
-	for (int i = 0; i < (*aa).mem; i++)
+	int i = 0;
+	while (i < (*aa).mem && (*aa).e[i].mem > 0)
 	{
 		free_array_double(&((*aa).e[i]));
+		free(&((*aa).e[i])); // RESUME: Check this! 000
 	}
 	free((*aa).e);
 }
@@ -663,6 +717,8 @@ void print_aarray_double(aarray_double aa)
 		printf("\n");
 	}
 }
+
+
 // aarray_double #ending
 
 // Methods for linked lists
@@ -1664,7 +1720,7 @@ void sort_array_char(array_char *a)
 // aarray_char #beginning
 void aarray_char_init(aarray_char *aa, int mem)
 {
-	aarray_char_init_precise(aa, mem, INIT_A_MEM);
+	aarray_char_init_precise(aa, mem, 0);
 }
 
 // An alternative to the last method that can be tuned to improve performance
@@ -1681,42 +1737,64 @@ void aarray_char_init_precise(aarray_char *aa, int mem1, int mem2)
 
 void add_mem_aarray_char(aarray_char *aa)
 {
+	int init_mem = (*aa).mem;
+	if ((*aa).mem > 0) {}
+	else (*aa).mem = 1;
 	(*aa).mem <<= 1;
 	array_char *ne = (array_char *) calloc((*aa).mem, sizeof(array_char));
-	for (int i = 0; i < (*aa).len; i++)
+	int i = 0;
+	while ((*aa).e[i].mem > 0 && i < init_mem)
 	{
-		ne[i].e = (*aa).e[i].e;
-		ne[i].len = (*aa).e[i].len;
-		ne[i].mem = (*aa).e[i].mem;
+		ne[i] = (*aa).e[i];
 	}
-	for (int i = (*aa).len; i < (*aa).mem; i++)
+	for (int ii = i; ii < (*aa).mem; ii++)
 	{
-		ne[i].e = NULL;
-		ne[i].mem = 0;
+		ne[ii].e = NULL;
+		ne[ii].mem = 0;
+		ne[ii].len = 0;
 	}
-	free((*aa).e);
+	if ((*aa).e != NULL) free((*aa).e);
 	(*aa).e = ne;
+}
+
+void contract_aarray_char(aarray_char *aa)
+{
+	if ((*a).mem > 0 && (*a).e != NULL)
+	{
+		int newsize = (*a).mem >> 1;
+		array_char *data = (array_char *) calloc(newsize, sizeof(array_char));
+		int ulim = (*a).len < newsize ? (*a).len : newsize;
+		for (int i = 0; i < ulim; i++) 
+		{
+			data[i] = (*a).e[i];
+		}
+		for (int i = ulim; i < newsize; i++)
+		{
+			data[i] = (*a).e[i];
+		}
+		free((*a).e);
+		(*a).e = data;
+		(*a).mem = newsize;
+	}
 }
 
 void add_mem_aarray_char_until(aarray_char *aa, int i)
 {
+	int init_mem = (*aa).mem;
 	if ((*aa).mem > 0) {}
-	else
-	{
-		(*aa).mem = 1;
-	}
+	else (*aa).mem = 1;
 	while ((*aa).mem <= i) (*aa).mem <<= 1;
 	array_char *ne = (array_char *) calloc((*aa).mem, sizeof(array_char));
-	for (int ii = 0; ii < (*aa).len; ii++)
+	int ii = 0; 
+	while (ii < init_mem && (*aa).e[ii].mem > 0)
 	{
-		ne[ii].e = (*aa).e[ii].e;
-		ne[ii].len = (*aa).e[ii].len;
-		ne[ii].mem = (*aa).e[ii].mem;
+		ne[ii] = (*aa).e[ii];
 	}
-	for (int ii = (*aa).len; ii < (*aa).mem; ii++)
+	for (int i = ii; i < (*aa).mem; i++)
 	{
-		ne[ii].e = NULL;
-		ne[ii].mem = 0;
+		ne[i].e = NULL;
+		ne[i].mem = 0;
+		ne[i].len = 0;
 	}
 	if ((*aa).e != NULL) free((*aa).e);
 	(*aa).e = ne;
@@ -1724,43 +1802,49 @@ void add_mem_aarray_char_until(aarray_char *aa, int i)
 
 void extend_aarray_char(aarray_char *aa)
 {
+	extend_aarray_char_precise(aa, INIT_A_MEM);
+}
+
+void extend_aarray_char_precise(aarray_char *aa, int init_mem)
+{
 	if ((*aa).len == (*aa).mem)
 	{
 		add_mem_aarray_char(aa);
 	}
-	if ((*aa).e[(*aa).len].e != NULL) {}
-	else 
+	if ((*aa).e[(*aa).len].e != NULL) 
 	{
-		(*aa).e[(*aa).len].e = (char *) calloc(1, sizeof(char));
-		(*aa).e[(*aa).len].mem = 1;
 		(*aa).e[(*aa).len].len = 0;
 	}
+	else
+	{
+		array_char_init(&((*aa).e[(*aa).len]), init_mem);
+	}
 	(*aa).len += 1;
+
 }
 
+// RESUME: Check this! 001
 void add2aarray_char(aarray_char *aa, array_char a)
 {
-	if ((*aa).len < (*aa).mem) {}
-	else
+	if (a.mem > 0) {}
+	else 
+	{
+		printf("Error: attempting to add empty array_char to array of array_char (aarray_char.)\n");
+		exit(EXIT_FAILURE);
+	}
+	if ((*aa).len == (*aa).mem)
 	{
 		add_mem_aarray_char(aa);
 	}
-	//transcribe_array_char(&(*aa).e[(*aa).len], &a);
 	if ((*aa).e[(*aa).len].mem == 0) {}
-	else
+	else 
 	{
+		// NOTE: alternatively, consider swapping the last element of aa with the next NULL element in 
+		// 	memory, which might improve performance in some settings.
 		free_array_char(&(*aa).e[(*aa).len]);
 	}
 	(*aa).e[(*aa).len] = a;
-	// It should be valid to simply set (*aa).e[(*aa).len] = a
 	(*aa).len += 1;
-}
-
-void add2aarray_char_elem(aarray_char *aa, int ai, char i)
-{
-	add_mem_aarray_char_until(aa, ai);
-	add2array_char(&((*aa).e[ai]), i);
-	(*aa).len = (*aa).len > ai? (*aa).len: ai + 1;
 }
 
 void reset_aarray_char_elem(int i, aarray_char *aa)
@@ -1768,25 +1852,34 @@ void reset_aarray_char_elem(int i, aarray_char *aa)
 	reset_array_char(&((*aa).e[i]));
 }
 
+// RESUME: test this
 void remove_aarray_char(aarray_char *aa, int i)
 {
-	(*aa).len -= 1;
-	// transcribe the last element of (*aa) onto the i-th element
-	array_char aux = (*aa).e[i];
-	(*aa).e[i] = (*aa).e[(*aa).len];
-	(*aa).e[(*aa).len] = aux;
-	reset_aarray_char_elem((*aa).len, aa);
-	free((*aa).e[(*aa).len].e);
-	(*aa).e[(*aa).len].e = NULL;
-	(*aa).e[(*aa).len].mem = 0;
-	(*aa).e[(*aa).len].len = 0;
+	if (i < (*aa).len && i > -1)
+	{
+		(*aa).len -= 1;
+		// transcribe the last element of (*aa) onto the i-th element
+		array_char aux = (*aa).e[i];
+		(*aa).e[i] = (*aa).e[(*aa).len];
+		(*aa).e[(*aa).len] = aux;
+		reset_aarray_char_elem((*aa).len, aa);
+		if ((*aa).len > (*aa).mem >> 2) {}
+		else contract_aarray_char(aa);
+	}
+	else 
+	{
+		printf("Error: attempting to remove non-existent aarray_char element %d of %d\n", i, (*aa).len);
+		exit(EXIT_FAILURE);
+	}
 }
 
 void free_aarray_char(aarray_char *aa)
 {
-	for (int i = 0; i < (*aa).mem; i++)
+	int i = 0;
+	while (i < (*aa).mem && (*aa).e[i].mem > 0)
 	{
 		free_array_char(&((*aa).e[i]));
+		free(&((*aa).e[i])); // RESUME: Check this! 000
 	}
 	free((*aa).e);
 }
@@ -1797,11 +1890,12 @@ void print_aarray_char(aarray_char aa)
 	{
 		for (int ii = 0; ii < aa.e[i].len; ii++)
 		{
-			printf("%c ", aa.e[i].e[ii]);
+			printf("%d ", aa.e[i].e[ii]);
 		}
 		printf("\n");
 	}
 }
+
 // aarray_char #ending
 
 char one_bit(char *a, int *b)
