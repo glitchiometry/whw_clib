@@ -398,7 +398,7 @@ void add_mem_aarray_int(aarray_int *aa)
 	(*aa).e = ne;
 }
 
-void contract_aarray_int(aarray_int *aa)
+void contract_aarray_int(aarray_int *a)
 {
 	if ((*a).mem > 0 && (*a).e != NULL)
 	{
@@ -579,7 +579,7 @@ void add_mem_aarray_double(aarray_double *aa)
 	(*aa).e = ne;
 }
 
-void contract_aarray_double(aarray_double *aa)
+void contract_aarray_double(aarray_double *a)
 {
 	if ((*a).mem > 0 && (*a).e != NULL)
 	{
@@ -1757,7 +1757,7 @@ void add_mem_aarray_char(aarray_char *aa)
 	(*aa).e = ne;
 }
 
-void contract_aarray_char(aarray_char *aa)
+void contract_aarray_char(aarray_char *a)
 {
 	if ((*a).mem > 0 && (*a).e != NULL)
 	{
