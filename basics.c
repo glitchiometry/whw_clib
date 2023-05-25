@@ -387,6 +387,7 @@ void add_mem_aarray_int(aarray_int *aa)
 	while ((*aa).e[i].mem > 0 && i < init_mem)
 	{
 		ne[i] = (*aa).e[i];
+		i += 1;
 	}
 	for (int ii = i; ii < (*aa).mem; ii++)
 	{
@@ -430,6 +431,7 @@ void add_mem_aarray_int_until(aarray_int *aa, int i)
 	while (ii < init_mem && (*aa).e[ii].mem > 0)
 	{
 		ne[ii] = (*aa).e[ii];
+		ii += 1;
 	}
 	for (int i = ii; i < (*aa).mem; i++)
 	{
@@ -568,6 +570,7 @@ void add_mem_aarray_double(aarray_double *aa)
 	while ((*aa).e[i].mem > 0 && i < init_mem)
 	{
 		ne[i] = (*aa).e[i];
+		i += 1;
 	}
 	for (int ii = i; ii < (*aa).mem; ii++)
 	{
@@ -611,6 +614,7 @@ void add_mem_aarray_double_until(aarray_double *aa, int i)
 	while (ii < init_mem && (*aa).e[ii].mem > 0)
 	{
 		ne[ii] = (*aa).e[ii];
+		ii += 1;
 	}
 	for (int i = ii; i < (*aa).mem; i++)
 	{
@@ -1746,6 +1750,7 @@ void add_mem_aarray_char(aarray_char *aa)
 	while ((*aa).e[i].mem > 0 && i < init_mem)
 	{
 		ne[i] = (*aa).e[i];
+		i += 1;
 	}
 	for (int ii = i; ii < (*aa).mem; ii++)
 	{
@@ -1789,6 +1794,7 @@ void add_mem_aarray_char_until(aarray_char *aa, int i)
 	while (ii < init_mem && (*aa).e[ii].mem > 0)
 	{
 		ne[ii] = (*aa).e[ii];
+		ii += 1;
 	}
 	for (int i = ii; i < (*aa).mem; i++)
 	{
