@@ -522,7 +522,7 @@ void free_aarray_int(aarray_int *aa)
 	while (i < (*aa).mem && (*aa).e[i].mem > 0)
 	{
 		free_array_int(&((*aa).e[i]));
-		free(&((*aa).e[i])); // RESUME: Check this! 000
+		// free(&((*aa).e[i])); // RESUME: Check this! 000
 	}
 	free((*aa).e);
 }
@@ -705,7 +705,7 @@ void free_aarray_double(aarray_double *aa)
 	while (i < (*aa).mem && (*aa).e[i].mem > 0)
 	{
 		free_array_double(&((*aa).e[i]));
-		free(&((*aa).e[i])); // RESUME: Check this! 000
+		// free(&((*aa).e[i])); // RESUME: Check this! 000
 	}
 	free((*aa).e);
 }
@@ -1885,7 +1885,7 @@ void free_aarray_char(aarray_char *aa)
 	while (i < (*aa).mem && (*aa).e[i].mem > 0)
 	{
 		free_array_char(&((*aa).e[i]));
-		free(&((*aa).e[i])); // RESUME: Check this! 000
+		// free(&((*aa).e[i])); // RESUME: Check this! 000
 	}
 	free((*aa).e);
 }
