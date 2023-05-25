@@ -233,7 +233,7 @@ void aarray_double_init(aarray_double *aa, int mem);
 void aarray_double_init_precise(aarray_double *aa, int mem1, int mem2);
 void add_mem_aarray_double(aarray_double *aa);
 void add_mem_aarray_double_until(aarray_double *aa, int i);
-void contract_aarray_double(aarray_double **a);
+void contract_aarray_double(aarray_double *a);
 void extend_aarray_double(aarray_double *aa);
 void extend_aarray_double_precise(aarray_double *aa, int init_mem);
 void add2aarray_double(aarray_double *aa, array_double a);
