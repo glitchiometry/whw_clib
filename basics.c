@@ -214,6 +214,7 @@ void add_mem_array_int(array_int *a)
 
 void add_mem_array_int_until(array_int *a, int i)
 {
+	if ((*a).mem > i) return;
 	if ((*a).mem > 0) {}
 	else (*a).mem = 1;
 	while ((*a).mem <= i)
@@ -422,6 +423,7 @@ void contract_aarray_int(aarray_int *a)
 
 void add_mem_aarray_int_until(aarray_int *aa, int i)
 {
+	if ((*aa).mem > i) return;
 	int init_mem = (*aa).mem;
 	if ((*aa).mem > 0) {}
 	else (*aa).mem = 1;
@@ -489,6 +491,15 @@ void add2aarray_int(aarray_int *aa, array_int a)
 	(*aa).e[(*aa).len] = a;
 	(*aa).len += 1;
 }
+
+void add2aarray_int_elem(aarray_int *aa, int ai, int i)
+{
+	add_mem_aarray_int_until(aa, ai);
+	add2array_int(&((*aa).e[ai]), i);
+	(*aa).len = (*aa).len > ai? (*aa).len: ai + 1;
+}
+
+
 
 void reset_aarray_int_elem(int i, aarray_int *aa)
 {
@@ -606,6 +617,7 @@ void contract_aarray_double(aarray_double *a)
 
 void add_mem_aarray_double_until(aarray_double *aa, int i)
 {
+	if ((*aa).mem > i) return;
 	int init_mem = (*aa).mem;
 	if ((*aa).mem > 0) {}
 	else (*aa).mem = 1;
@@ -766,13 +778,6 @@ void free_linked_list(linked_list **ll)
 
 
 // 
-
-void add2aarray_int_elem(aarray_int *aa, int ai, int i)
-{
-	add_mem_aarray_int_until(aa, ai);
-	add2array_int(&((*aa).e[ai]), i);
-	(*aa).len = (*aa).len > ai? (*aa).len: ai + 1;
-}
 
 // methods for variable dimension box lists
 void move_boxlist_elem(boxlist *bl, int elem, int new_box_index)
@@ -1384,6 +1389,7 @@ void add_mem_array_double(array_double *a)
 
 void add_mem_array_double_until(array_double *a, int i)
 {
+	if ((*a).mem > i) return;
 	if ((*a).mem > 0) {}
 	else (*a).mem = 1;
 	while ((*a).mem <= i)
@@ -1579,6 +1585,7 @@ void add_mem_array_char(array_char *a)
 
 void add_mem_array_char_until(array_char *a, int i)
 {
+	if ((*a).mem > i) return;
 	if ((*a).mem > 0) {}
 	else (*a).mem = 1;
 	while ((*a).mem <= i)
@@ -1787,6 +1794,7 @@ void contract_aarray_char(aarray_char *a)
 
 void add_mem_aarray_char_until(aarray_char *aa, int i)
 {
+	if ((*aa).mem > i) return;
 	int init_mem = (*aa).mem;
 	if ((*aa).mem > 0) {}
 	else (*aa).mem = 1;
