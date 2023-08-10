@@ -1278,9 +1278,21 @@ void remove_edge_nbrlist(nbrlist *nbl, int vertex, int local_nbr_index)
 	{
 		remove_array_int(&(*nbl).v.e[vertex_], local_nbr_index_);
 		remove_array_int(&(*nbl).i_of.e[vertex_], local_nbr_index_);
+		if ((*nbl).v.e[vertex_].len > 0)
+		{
+			int vertex__ = (*nbl).v.e[vertex_].e[local_nbr_index_];
+			int local_nbr_index__ = (*nbl).i_of.e[vertex_].e[local_nbr_index_];
+			(*nbl).i_of.e[vertex__].e[local_nbr_index__] = local_nbr_index_;
+		}
 	}
 	remove_array_int(&(*nbl).v.e[vertex], local_nbr_index);
 	remove_array_int(&(*nbl).i_of.e[vertex], local_nbr_index);
+	if ((*nbl).v.e[vertex].len > 0)
+	{
+		int _vertex = (*nbl).v.e[vertex].e[local_nbr_index];
+		int _local_nbr_index = (*nbl).i_of.e[vertex].e[local_nbr_index];
+		(*nbl).i_of.e[_vertex].e[_local_nbr_index] = local_nbr_index;
+	}
 }
 
 void remove_vertex_nbrlist(nbrlist *nbl, int vertex)
