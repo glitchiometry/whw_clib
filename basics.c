@@ -1198,7 +1198,13 @@ void extend_nbrlist(nbrlist *nbl)
 {
 	prep_nbrlist(nbl);
 	(*nbl).v.len += 1;
-	(*nbl).i_of.len = (*nbl).v.len;
+	(*nbl).i_of.len += 1;
+	/*array_int nbrs;
+	array_int i_of_;
+	array_int_init(&nbrs, 1);
+	array_int_init(&i_of_, 1);
+	add2aarray_int(&((*nbl).v), nbrs);
+	add2aarray_int(&((*nbl).i_of), i_of_);*/
 }
 
 void set_len_nbrlist(nbrlist *nbl, int len)
@@ -1210,9 +1216,23 @@ void set_len_nbrlist(nbrlist *nbl, int len)
 
 void extend_nbrlist_n(nbrlist *nbl, int N)
 {
+	int init_len = (*nbl).v.len;
 	(*nbl).v.len += N;
-	(*nbl).i_of.len = (*nbl).v.len;
+	(*nbl).i_of.len += N;
 	check_nbrlist(nbl);
+	/*
+	(*nbl).v.len -= N;
+	for (int i = 0; i < N; i++)
+	{
+		array_int nbrs;
+		array_int i_of_;
+		array_int_init(&nbrs, 1);
+		array_int_init(&i_of_, 1);
+		add2aarray_int(&((*nbl).v), nbrs);
+		add2aarray_int(&((*nbl).i_of), i_of_);
+
+	}
+	*/
 }
 
 void ensure_nbrlist_size_n(nbrlist *nbl, int N)
@@ -1254,8 +1274,19 @@ void add_edge_nbrlist(nbrlist *nbl, int vertex1, int vertex2)
 
 void add_edge_nbrlist_1way(nbrlist *nbl, int vertex1, int vertex2)
 {
-	add2aarray_int_elem(&(*nbl).i_of, vertex1, -1);
+	int back_edge = -1;
+	for (int i = 0; i < (*nbl).v.e[vertex2].len; i++)
+	{
+		if ((*nbl).v.e[vertex2].e[i] == vertex1)
+		{
+			back_edge = i;
+			(*nbl).i_of.e[vertex2].e[back_edge] = (*nbl).v.e[vertex1].len;
+			break;
+		}
+	}
+	add2aarray_int_elem(&(*nbl).i_of, vertex1, back_edge);
 	add2aarray_int_elem(&(*nbl).v, vertex1, vertex2);
+
 }
 
 void remove_edge_nbrlist_1way(nbrlist *nbl, int vertex, int local_nbr_index)
@@ -1268,6 +1299,12 @@ void remove_edge_nbrlist_1way(nbrlist *nbl, int vertex, int local_nbr_index)
 	}
 	remove_array_int(&(*nbl).v.e[vertex], local_nbr_index);
 	remove_array_int(&(*nbl).i_of.e[vertex], local_nbr_index);
+	if ((*nbl).v.e[vertex].len > 0)
+	{
+		int _vertex = (*nbl).v.e[vertex].e[local_nbr_index];
+		int _local_nbr_index = (*nbl).i_of.e[vertex].e[local_nbr_index];
+		(*nbl).i_of.e[_vertex].e[_local_nbr_index] = local_nbr_index;
+	}
 }
 
 void remove_edge_nbrlist(nbrlist *nbl, int vertex, int local_nbr_index)
