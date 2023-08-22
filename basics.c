@@ -1373,6 +1373,22 @@ void remove_all_edges_nbrlist(nbrlist *nbl)
 	}
 }
 
+void fprintf_nbrlist(nbrlist *nbl, FILE *ofile)
+{
+	if (ofile != NULL)
+	{
+		for (int i = 0; i < (*nbl).v.len; i++)
+		{
+			fprintf(ofile, "%d ", (*nbl).v.e[i].len);
+			for (int ni = 0; ni < (*nbl).v.e[i].len; ni++)
+			{
+				fprintf(ofile, "%d ", (*nbl).v.e[i].e[ni]);
+			}
+			fprintf(ofile, "\n");
+		}
+	}
+}
+
 void write_nbrlist(nbrlist *nbl, char *ofname)
 {
 	FILE *ofile = fopen(ofname, "w");
@@ -1605,6 +1621,27 @@ void remove_vertex_dir_graph(dir_graph *dgr, int vertex)
 	}
 }
 
+void fprintf_dir_graph(dir_graph *dgr, FILE *ofile)
+{
+	if (ofile != NULL)
+	{
+		for (int i = 0; i < (*dgr).out.len; i++)
+		{
+			fprintf(ofile, "%d %d ", (*dgr).out.e[i].len, (*dgr).in.e[i].len);
+			for (int ii = 0; ii < (*dgr).out.e[i].len; ii++)
+			{
+				fprintf(ofile, "%d ", (*dgr).out.e[i].e[ii]);
+			}
+			for (int ii = 0; ii < (*dgr).in.e[i].len; ii++)
+			{
+				fprintf(ofile, "%d ", (*dgr).in.e[i].e[ii]);
+			}
+			fprintf(ofile, "\n");
+		}
+
+	}
+}
+
 void write_dir_graph(dir_graph *dgr, char *ofname)
 {
 	FILE *ofile = fopen(ofname, "w");
@@ -1621,6 +1658,7 @@ void write_dir_graph(dir_graph *dgr, char *ofname)
 			{
 				fprintf(ofile, "%d ", (*dgr).in.e[i].e[ii]);
 			}
+			fprintf(ofile, "\n");
 		}
 		fclose(ofile);
 	}

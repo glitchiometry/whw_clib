@@ -333,6 +333,7 @@ void remove_edge_nbrlist(nbrlist *nbl, int vertex, int local_nbr_index);
 void remove_all_edges_nbrlist(nbrlist *nbl);
 void remove_edges_vertex_nbrlist(nbrlist *nbl, int vertex);
 void remove_vertex_nbrlist(nbrlist *nbl, int vertex);
+void fprintf_nbrlist(nbrlist *nbl, FILE *ofile);
 void write_nbrlist(nbrlist *nbl, char *ofname);
 void free_nbrlist(nbrlist *nbl);
 int N_vertices_nbrlist(nbrlist *nbl);
@@ -354,6 +355,7 @@ void remove_in_dir_graph(dir_graph *dgr, int vertex, int local_nbr_index);
 void remove_all_edges_dir_graph(dir_graph *dgr);
 void remove_edges_vertex_dir_graph(dir_graph *dgr, int vertex);
 void remove_vertex_dir_graph(dir_graph *dgr, int vertex);
+void fprintf_dir_graph(dir_graph *dgr, FILE *ofile)
 void write_dir_graph(dir_graph *dgr, char *ofname);
 void free_dir_graph(dir_graph *dgr);
 
