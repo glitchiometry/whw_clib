@@ -1513,7 +1513,7 @@ void add_edge_dir_graph_safe(dir_graph *dgr, int vertex1, int vertex2)
 	if (new_edge) add_edge_dir_graph(dgr, vertex1, vertex2);
 }
 
-void remove_out_dir_graph_exp(aarray_int *out, aarray_int *in, aarray_int *i_of_oi, aarray_int *i_of_io)
+void remove_out_dir_graph_exp(aarray_int *out, aarray_int *in, aarray_int *i_of_oi, aarray_int *i_of_io, int vertex, int local_nbr_index)
 {
 	// Update: (*dgr).out.e[vertex], (*dgr).in.e[vertex2], (*dgr).i_of_oi.e[vertex], (*dgr).i_of_io.e[vertex_1], (*dgr).i_of_oi.e[vertex_2]
 	int vertex2 = (*out).e[vertex].e[local_nbr_index];
@@ -1524,7 +1524,7 @@ void remove_out_dir_graph_exp(aarray_int *out, aarray_int *in, aarray_int *i_of_
 	remove_array_int(&((*i_of_io).e[vertex2]), i_of_12);
 	int vertex_ = (*out).e[vertex].e[local_nbr_index];
 	int i_of_1_ = (*i_of_oi).e[vertex].e[local_nbr_index];
-	(*i_of_io).e[vertex_].e[i_of_i_] = local_nbr_index;
+	(*i_of_io).e[vertex_].e[i_of_1_] = local_nbr_index;
 	int vertex2_ = (*in).e[vertex2].e[i_of_12];
 	int i_of_22_ = (*i_of_io).e[vertex2].e[i_of_12];
 	(*i_of_oi).e[vertex2_].e[i_of_22_] = i_of_12;
@@ -1533,7 +1533,7 @@ void remove_out_dir_graph_exp(aarray_int *out, aarray_int *in, aarray_int *i_of_
 
 void remove_out_dir_graph(dir_graph *dgr, int vertex, int local_nbr_index)
 {
-	remove_out_dir_graph_exp(&((*dgr).out), &((*dgr).in), &((*dgr).i_of_oi), &((*dgr).i_of_io));
+	remove_out_dir_graph_exp(&((*dgr).out), &((*dgr).in), &((*dgr).i_of_oi), &((*dgr).i_of_io), vertex, local_nbr_index);
 	// Update: (*dgr).out.e[vertex], (*dgr).in.e[vertex2], (*dgr).i_of_oi.e[vertex], (*dgr).i_of_io.e[vertex_1], (*dgr).i_of_oi.e[vertex_2]
 	/*
 	 * int vertex2 = (*dgr).out.e[vertex].e[local_nbr_index];
@@ -1553,7 +1553,7 @@ void remove_out_dir_graph(dir_graph *dgr, int vertex, int local_nbr_index)
 
 void remove_in_dir_graph(dir_graph *dgr, int vertex, int local_nbr_index)
 {
-	remove_out_dir_graph_exp(&((*dgr).in), &((*dgr).out), &((*dgr).i_of_io), &((*dgr).i_of_oi));
+	remove_out_dir_graph_exp(&((*dgr).in), &((*dgr).out), &((*dgr).i_of_io), &((*dgr).i_of_oi), vertex, local_nbr_index);
 }
 
 void remove_all_edges_dir_graph(dir_graph *dgr)
@@ -1607,7 +1607,7 @@ void remove_vertex_dir_graph(dir_graph *dgr, int vertex)
 
 void write_dir_graph(dir_graph *dgr, char *ofname)
 {
-	FILE *ofile = fopen(ofname);
+	FILE *ofile = fopen(ofname, "w");
 	if (ofile != NULL)
 	{
 		for (int i = 0; i < (*dgr).out.len; i++)
