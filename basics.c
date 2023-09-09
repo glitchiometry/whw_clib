@@ -1650,6 +1650,21 @@ void add_mem_array_char_until(array_char *a, int i)
 	(*a).e = ne;
 }
 
+void append_array_char(array_char *a, char *buf, int len)
+{
+	if (len > -1) {}
+	else
+	{
+		len = str_len(buf);
+	}
+	add_mem_array_char_until(a, (*a).len + len);
+	for (int i = 0; i < len; i++)
+	{
+		(*a).e[(*a).len] = buf[i];
+		(*a).len += 1;
+	}
+}
+
 void add2array_char(array_char *a, char i)
 {
 	if ((*a).len < (*a).mem) {}

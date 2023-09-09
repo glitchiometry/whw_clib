@@ -200,6 +200,7 @@ int array_char_search(array_char *a, char elem);
 void add_mem_array_char(array_char *a);
 void add_mem_array_char_until(array_char *a, int i);
 void add2array_char(array_char *a, char i);
+void append_array_char(array_char *a, char *buf, int len);
 void print_array_char(array_char a);
 void remove_array_char(array_char *a, int n);
 void contract_array_char(array_char *a);
