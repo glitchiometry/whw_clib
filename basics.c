@@ -1353,7 +1353,7 @@ void remove_vertex_nbrlist(nbrlist *nbl, int vertex)
 	}
 }
 
-void remove_edges_nbrlist_vertex(nbrlist *nbl, int vertex)
+void remove_edges_vertex_nbrlist(nbrlist *nbl, int vertex)
 {
 	int i = (*nbl).v.e[vertex].len;
 	do
@@ -1373,6 +1373,22 @@ void remove_all_edges_nbrlist(nbrlist *nbl)
 	}
 }
 
+void fprintf_nbrlist(nbrlist *nbl, FILE *ofile)
+{
+	if (ofile != NULL)
+	{
+		for (int i = 0; i < (*nbl).v.len; i++)
+		{
+			fprintf(ofile, "%d ", (*nbl).v.e[i].len);
+			for (int ni = 0; ni < (*nbl).v.e[i].len; ni++)
+			{
+				fprintf(ofile, "%d ", (*nbl).v.e[i].e[ni]);
+			}
+			fprintf(ofile, "\n");
+		}
+	}
+}
+
 void write_nbrlist(nbrlist *nbl, char *ofname)
 {
 	FILE *ofile = fopen(ofname, "w");
@@ -1380,6 +1396,7 @@ void write_nbrlist(nbrlist *nbl, char *ofname)
 	{
 		for (int i = 0; i < (*nbl).v.len; i++)
 		{
+			fprintf(ofile, "%d ", (*nbl).v.e[i].len);
 			for (int ni = 0; ni < (*nbl).v.e[i].len; ni++)
 			{
 				fprintf(ofile, "%d ", (*nbl).v.e[i].e[ni]);
@@ -1405,6 +1422,256 @@ int N_nbors_nbrlist(nbrlist *nbl, int v_index)
 {
 	return (*nbl).v.e[v_index].len;
 }
+
+// Methods for dir_graph
+//
+void dir_graph_init_precise(dir_graph *dgr, int mem)
+{
+	aarray_int_init_precise(&((*dgr).out), mem, 1);
+	aarray_int_init_precise(&((*dgr).in), mem, 1);
+	aarray_int_init_precise(&((*dgr).i_of_io), mem, 1);
+	aarray_int_init_precise(&((*dgr).i_of_oi), mem, 1);
+}
+
+void dir_graph_init(dir_graph *dgr)
+{
+	dir_graph_init_precise(dgr, 1);
+}
+
+void prep_dir_graph(dir_graph *dgr)
+{
+	if ((*dgr).out.len < (*dgr).out.mem)
+       	{
+		if ((*dgr).out.len > ((*dgr).out.mem >> 2)) {}
+		else
+		{
+			contract_aarray_int(&((*dgr).out));
+			contract_aarray_int(&((*dgr).in));
+			contract_aarray_int(&((*dgr).i_of_io));
+			contract_aarray_int(&((*dgr).i_of_oi));
+		}
+	}
+	else
+	{
+		add_mem_aarray_int(&((*dgr).out));
+		add_mem_aarray_int(&((*dgr).in));
+		add_mem_aarray_int(&((*dgr).i_of_io));
+		add_mem_aarray_int(&((*dgr).i_of_oi));
+	}
+}
+
+void check_dir_graph(dir_graph *dgr)
+{
+	if ((*dgr).out.len <= (*dgr).out.mem) {}
+	else
+	{
+		add_mem_aarray_int_until(&((*dgr).out), (*dgr).out.len);
+		add_mem_aarray_int_until(&((*dgr).in), (*dgr).out.len);
+		add_mem_aarray_int_until(&((*dgr).i_of_io), (*dgr).out.len);
+		add_mem_aarray_int_until(&((*dgr).i_of_oi), (*dgr).out.len);
+	}
+}
+
+void extend_dir_graph(dir_graph *dgr)
+{
+	prep_dir_graph(dgr);
+	(*dgr).out.len += 1;
+	(*dgr).in.len += 1;
+	(*dgr).i_of_io.len += 1;
+	(*dgr).i_of_oi.len += 1;
+}
+
+void extend_dir_graph_n(dir_graph *dgr, int N)
+{
+	(*dgr).out.len += N;
+	(*dgr).in.len += N;
+	(*dgr).i_of_io.len += N;
+	(*dgr).i_of_oi.len += N;
+	check_dir_graph(dgr);
+}
+
+void ensure_dir_graph_size_n(dir_graph *dgr, int N)
+{
+	if ((*dgr).out.len >= N) {}
+	else extend_dir_graph_n(dgr, N - (*dgr).out.len);
+}
+
+void set_len_dir_graph(dir_graph *dgr, int len)
+{
+	(*dgr).out.len = len;
+	(*dgr).in.len = len;
+	(*dgr).i_of_io.len = len;
+	(*dgr).i_of_oi.len = len;
+	check_dir_graph(dgr);
+}
+
+void add_edge_dir_graph(dir_graph *dgr, int vertex1, int vertex2)
+{
+	add2array_int(&((*dgr).i_of_io.e[vertex2]), (*dgr).out.e[vertex1].len);
+	add2array_int(&((*dgr).i_of_oi.e[vertex1]), (*dgr).in.e[vertex2].len);
+	add2array_int(&((*dgr).out.e[vertex1]), vertex2);
+	add2array_int(&((*dgr).in.e[vertex2]), vertex1);
+}
+
+void add_edge_dir_graph_safe(dir_graph *dgr, int vertex1, int vertex2)
+{
+	// Check that vertex2 does not already appear in the list of outgoing edges from vertex 1
+	char new_edge = 1;
+	for (int ii = 0; ii < (*dgr).out.e[vertex1].len; ii++)
+	{
+		if (vertex2 != (*dgr).out.e[vertex1].e[ii]) {}
+		else 
+		{
+			new_edge = 0;
+			break;
+		}
+	}
+	if (new_edge) add_edge_dir_graph(dgr, vertex1, vertex2);
+}
+
+void remove_out_dir_graph_exp(aarray_int *out, aarray_int *in, aarray_int *i_of_oi, aarray_int *i_of_io, int vertex, int local_nbr_index)
+{
+	// Update: (*dgr).out.e[vertex], (*dgr).in.e[vertex2], (*dgr).i_of_oi.e[vertex], (*dgr).i_of_io.e[vertex_1], (*dgr).i_of_oi.e[vertex_2]
+	int vertex2 = (*out).e[vertex].e[local_nbr_index];
+	int i_of_12 = (*i_of_oi).e[vertex].e[local_nbr_index];
+	remove_array_int(&((*out).e[vertex]), local_nbr_index);
+	remove_array_int(&((*in).e[vertex2]), i_of_12);
+	remove_array_int(&((*i_of_oi).e[vertex]), local_nbr_index);
+	remove_array_int(&((*i_of_io).e[vertex2]), i_of_12);
+	int vertex_ = (*out).e[vertex].e[local_nbr_index];
+	int i_of_1_ = (*i_of_oi).e[vertex].e[local_nbr_index];
+	(*i_of_io).e[vertex_].e[i_of_1_] = local_nbr_index;
+	int vertex2_ = (*in).e[vertex2].e[i_of_12];
+	int i_of_22_ = (*i_of_io).e[vertex2].e[i_of_12];
+	(*i_of_oi).e[vertex2_].e[i_of_22_] = i_of_12;
+
+}
+
+void remove_out_dir_graph(dir_graph *dgr, int vertex, int local_nbr_index)
+{
+	remove_out_dir_graph_exp(&((*dgr).out), &((*dgr).in), &((*dgr).i_of_oi), &((*dgr).i_of_io), vertex, local_nbr_index);
+	// Update: (*dgr).out.e[vertex], (*dgr).in.e[vertex2], (*dgr).i_of_oi.e[vertex], (*dgr).i_of_io.e[vertex_1], (*dgr).i_of_oi.e[vertex_2]
+	/*
+	 * int vertex2 = (*dgr).out.e[vertex].e[local_nbr_index];
+	int i_of_12 = (*dgr).i_of_oi.e[vertex].e[local_nbr_index];
+	remove_array_int(&((*dgr).out.e[vertex]), local_nbr_index);
+	remove_array_int(&((*dgr).in.e[vertex2]), i_of_12);
+	remove_array_int(&((*dgr).i_of_oi.e[vertex]), local_nbr_index);
+	remove_array_int(&((*dgr).i_of_io.e[vertex2]), i_of_12);
+	int vertex_ = (*dgr).out.e[vertex].e[local_nbr_index];
+	int i_of_1_ = (*dgr).i_of_oi.e[vertex].e[local_nbr_index];
+	(*dgr).i_of_io.e[vertex_].e[i_of_i_] = local_nbr_index;
+	int vertex2_ = (*dgr).in.e[vertex2].e[i_of_12];
+	int i_of_22_ = (*dgr).i_of_io.e[vertex2].e[i_of_12];
+	(*dgr).i_of_oi.e[vertex2_].e[i_of_22_] = i_of_12;
+	*/
+}
+
+void remove_in_dir_graph(dir_graph *dgr, int vertex, int local_nbr_index)
+{
+	remove_out_dir_graph_exp(&((*dgr).in), &((*dgr).out), &((*dgr).i_of_io), &((*dgr).i_of_oi), vertex, local_nbr_index);
+}
+
+void remove_all_edges_dir_graph(dir_graph *dgr)
+{
+	for (int i = 0; i < (*dgr).out.len; i++)
+	{
+		(*dgr).out.e[i].len = 0;
+		(*dgr).in.e[i].len = 0;
+		(*dgr).i_of_io.e[i].len = 0;
+		(*dgr).i_of_oi.e[i].len = 0;
+	}	
+}
+
+void remove_edges_vertex_dir_graph(dir_graph *dgr, int vertex)
+{
+	int ii_out = (*dgr).out.e[vertex].len;
+	while (ii_out > 0)
+	{
+		ii_out -= 1;
+		remove_out_dir_graph(dgr, vertex, ii_out);
+	}
+	int ii_in = (*dgr).in.e[vertex].len;
+	while (ii_in > 0)
+	{
+		ii_in -= 1;
+		remove_in_dir_graph(dgr, vertex, ii_in);
+	}
+}
+
+void remove_vertex_dir_graph(dir_graph *dgr, int vertex)
+{
+	remove_edges_vertex_dir_graph(dgr, vertex);
+	remove_aarray_int(&((*dgr).out), vertex);
+	remove_aarray_int(&((*dgr).in), vertex);
+	remove_aarray_int(&((*dgr).i_of_oi), vertex);
+	remove_aarray_int(&((*dgr).i_of_io), vertex);
+	for (int ii = 0; ii < (*dgr).out.e[vertex].len; ii++)
+	{
+		int j_ = (*dgr).out.e[vertex].e[ii];
+		int i_of_ij_ = (*dgr).i_of_oi.e[vertex].e[ii];
+		(*dgr).in.e[j_].e[i_of_ij_] = vertex;
+
+	}
+	for (int ii = 0; ii < (*dgr).in.e[vertex].len; ii++)
+	{
+		int _j = (*dgr).in.e[vertex].e[ii];
+		int i_of_i_j = (*dgr).i_of_io.e[vertex].e[ii];
+		(*dgr).out.e[_j].e[i_of_i_j] = vertex;
+	}
+}
+
+void fprintf_dir_graph(dir_graph *dgr, FILE *ofile)
+{
+	if (ofile != NULL)
+	{
+		for (int i = 0; i < (*dgr).out.len; i++)
+		{
+			fprintf(ofile, "%d %d ", (*dgr).out.e[i].len, (*dgr).in.e[i].len);
+			for (int ii = 0; ii < (*dgr).out.e[i].len; ii++)
+			{
+				fprintf(ofile, "%d ", (*dgr).out.e[i].e[ii]);
+			}
+			for (int ii = 0; ii < (*dgr).in.e[i].len; ii++)
+			{
+				fprintf(ofile, "%d ", (*dgr).in.e[i].e[ii]);
+			}
+			fprintf(ofile, "\n");
+		}
+
+	}
+}
+
+void write_dir_graph(dir_graph *dgr, char *ofname)
+{
+	FILE *ofile = fopen(ofname, "w");
+	if (ofile != NULL)
+	{
+		for (int i = 0; i < (*dgr).out.len; i++)
+		{
+			fprintf(ofile, "%d %d ", (*dgr).out.e[i].len, (*dgr).in.e[i].len);
+			for (int ii = 0; ii < (*dgr).out.e[i].len; ii++)
+			{
+				fprintf(ofile, "%d ", (*dgr).out.e[i].e[ii]);
+			}
+			for (int ii = 0; ii < (*dgr).in.e[i].len; ii++)
+			{
+				fprintf(ofile, "%d ", (*dgr).in.e[i].e[ii]);
+			}
+			fprintf(ofile, "\n");
+		}
+		fclose(ofile);
+	}
+}
+
+void free_dir_graph(dir_graph *dgr)
+{
+	free_aarray_int(&((*dgr).out));
+	free_aarray_int(&((*dgr).in));
+	free_aarray_int(&((*dgr).i_of_oi));
+	free_aarray_int(&((*dgr).i_of_io));
+}
+// end (methods for dir_graph)
 
 // Methods for variable length arrays of doubles
 // RESUME: make sure that all instances of array_double_init are consistent with the new implementation

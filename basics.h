@@ -143,6 +143,17 @@ typedef struct
 	aarray_int i_of;
 } nbrlist; 
 
+// A directed graph
+typedef struct
+{
+	// lists of outgoing and incoming edges
+	aarray_int out;
+	aarray_int in;
+	// indices of vertices w.r.t. neighbors (i.e. i_of_io.e[i].e[ii] = outgoing index from j = in.e[i].e[ii] to i.) 
+	aarray_int i_of_io;
+	aarray_int i_of_oi;
+} dir_graph;
+
 typedef struct generic_iter
 {
 	int state;
@@ -323,10 +334,31 @@ void remove_edge_nbrlist(nbrlist *nbl, int vertex, int local_nbr_index);
 void remove_all_edges_nbrlist(nbrlist *nbl);
 void remove_edges_vertex_nbrlist(nbrlist *nbl, int vertex);
 void remove_vertex_nbrlist(nbrlist *nbl, int vertex);
+void fprintf_nbrlist(nbrlist *nbl, FILE *ofile);
 void write_nbrlist(nbrlist *nbl, char *ofname);
 void free_nbrlist(nbrlist *nbl);
 int N_vertices_nbrlist(nbrlist *nbl);
 int N_nbors_nbrlist(nbrlist *nbl, int v_index);
+
+// Methods for directed graphs:
+void dir_graph_init_precise(dir_graph *dgr, int mem);
+void dir_graph_init(dir_graph *dgr);
+void prep_dir_graph(dir_graph *dgr);
+void check_dir_graph(dir_graph *dgr);
+void extend_dir_graph(dir_graph *dgr);
+void extend_dir_graph_n(dir_graph *dgr, int N);
+void ensure_dir_graph_size_n(dir_graph *dgr, int N);
+void set_len_dir_graph(dir_graph *dgr, int len);
+void add_edge_dir_graph(dir_graph *dgr, int vertex1, int vertex2);
+void add_edge_dir_graph_safe(dir_graph *dgr, int vertex1, int vertex2);
+void remove_out_dir_graph(dir_graph *dgr, int vertex, int local_nbr_index);
+void remove_in_dir_graph(dir_graph *dgr, int vertex, int local_nbr_index);
+void remove_all_edges_dir_graph(dir_graph *dgr);
+void remove_edges_vertex_dir_graph(dir_graph *dgr, int vertex);
+void remove_vertex_dir_graph(dir_graph *dgr, int vertex);
+void fprintf_dir_graph(dir_graph *dgr, FILE *ofile);
+void write_dir_graph(dir_graph *dgr, char *ofname);
+void free_dir_graph(dir_graph *dgr);
 
 // misc (to be sorted)
 void unflatten_box_index3D(int *m, int *flatbi, int *unflatbi);
