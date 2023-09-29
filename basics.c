@@ -145,9 +145,12 @@ void free_array_voidstar(array_voidstar *a, void (*free_elem)(void *))
 			}
 		}
 		free((*a).e);
+		(*a).e = NULL;
 	}
+	(*a).len = 0;
 }
 
+// NOTE: this function should be rarely used (and all pointers in the array should be freed independently.)
 void reset_array_voidstar(array_voidstar *a)
 {
 	(*a).len = 0;
@@ -281,6 +284,8 @@ void contract_array_int(array_int *a)
 void free_array_int(array_int *a)
 {
 	if ((*a).e != NULL) free((*a).e);
+	(*a).e = NULL;
+	(*a).len = 0;
 }
 
 void reset_array_int(array_int *a)
@@ -1772,6 +1777,8 @@ void contract_array_double(array_double *a)
 void free_array_double(array_double *a)
 {
 	if ((*a).e != NULL) free((*a).e);
+	(*a).e = NULL;
+	(*a).len = 0;
 }
 
 void reset_array_double(array_double *a)
@@ -1982,6 +1989,8 @@ void contract_array_char(array_char *a)
 void free_array_char(array_char *a)
 {
 	if ((*a).e != NULL) free((*a).e);
+	(*a).len = 0;
+	(*a).e = NULL;
 }
 
 void reset_array_char(array_char *a)
