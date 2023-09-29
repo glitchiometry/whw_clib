@@ -148,6 +148,7 @@ void free_array_voidstar(array_voidstar *a, void (*free_elem)(void *))
 		(*a).e = NULL;
 	}
 	(*a).len = 0;
+	(*a).mem = 0;
 }
 
 // NOTE: this function should be rarely used (and all pointers in the array should be freed independently.)
@@ -286,6 +287,7 @@ void free_array_int(array_int *a)
 	if ((*a).e != NULL) free((*a).e);
 	(*a).e = NULL;
 	(*a).len = 0;
+	(*a).mem = 0;
 }
 
 void reset_array_int(array_int *a)
@@ -1779,6 +1781,7 @@ void free_array_double(array_double *a)
 	if ((*a).e != NULL) free((*a).e);
 	(*a).e = NULL;
 	(*a).len = 0;
+	(*a).mem = 0;
 }
 
 void reset_array_double(array_double *a)
@@ -1991,6 +1994,7 @@ void free_array_char(array_char *a)
 	if ((*a).e != NULL) free((*a).e);
 	(*a).len = 0;
 	(*a).e = NULL;
+	(*a).mem = 0;
 }
 
 void reset_array_char(array_char *a)
@@ -2999,6 +3003,7 @@ void array_bit_int_init(array_bit *abit, int length)
 	(*abit).mem = block_size * (*data).mem;
 }
 
+// RESUME: check this!
 void add_mem_array_bit_int(array_bit *abit)
 {
 	add_mem_array_int((array_int *) (*abit).data);
