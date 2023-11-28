@@ -21,6 +21,7 @@ void array_voidstar_init(array_voidstar *a, int size_)
 		(*a).e = (void **) calloc(size_, sizeof(void *));
 		(*a).mem = size_;
 		(*a).len = 0;
+		for (int i = 0; i < (*a).mem; i++) (*a).e[i] = NULL;
 	}
 	else 
 	{
@@ -37,6 +38,10 @@ void add_mem_array_voidstar(array_voidstar *a)
 	for (int i = 0; i < (*a).len; i++)
 	{
 		ne[i] = (*a).e[i];
+	}
+	for (int i = (*a).len; i < (*a).mem; i++)
+	{
+		ne[i] = NULL;
 	}
 	if ((*a).e != NULL) free((*a).e);
 	(*a).e = ne;
@@ -55,6 +60,7 @@ void add_mem_array_voidstar_until(array_voidstar *a, int i)
 	{
 		ne[ii] = (*a).e[ii];
 	}
+	for (int ii = (*a).len; ii < (*a).mem; ii++) ne[ii] = NULL;
 	if ((*a).e != NULL) free((*a).e);
 	(*a).e = ne;
 }
