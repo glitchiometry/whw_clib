@@ -1207,6 +1207,31 @@ void check_nbrlist(nbrlist *nbl)
 
 }
 
+void identify_v_nbrlist(nbrlist *nbl, int i, int j)
+{
+	// Determine the neighbors of both i and j
+	for (int nj = 0; nj < (*nbl).v.e[j].len; nj++)
+	{
+		int jj = (*nbl).v.e[j].e[nj];
+		char adj_i = 0;
+		for (int ni = 0; ni < (*nbl).v.e[i].len; ni++)
+		{
+			int ii = (*nbl).v.e[i].e[ni];
+			if (ii == jj)
+			{
+				adj_i = 1;
+				break;
+			}
+		}
+		if (adj_i) {}
+		else
+		{
+			add_edge_nbrlist(nbl, i, jj);
+		}
+	}
+	remove_vertex_nbrlist(nbl, j);
+}
+
 void extend_nbrlist(nbrlist *nbl)
 {
 	prep_nbrlist(nbl);
@@ -3035,8 +3060,8 @@ void array_bit_int_set(array_bit *abit, int bit_pos, char bit_val)
 	{
 		while ((*abit).mem <= bit_pos) add_mem_array_bit_int(abit);
 	}
-	int addr = bit_pos / (*abit).block_size;
-	int bit_addr = bit_pos % (*abit).block_size;
+	int addr = bit_pos >> array_bit_int_lg_block_size;
+	int bit_addr = bit_pos & array_bit_int_addr_mask;
 	array_int *data = (array_int *) (*abit).data;
 	if (bit_val == 0) (*data).e[addr] &= array_bit_int_cmasks[bit_addr];
 	else (*data).e[addr] |= array_bit_int_masks[bit_addr];
@@ -3044,8 +3069,8 @@ void array_bit_int_set(array_bit *abit, int bit_pos, char bit_val)
 
 char array_bit_int_get(array_bit *abit, int bit_pos)
 {
-	int addr = bit_pos / (*abit).block_size;
-	int bit_addr = bit_pos % (*abit).block_size;
+	int addr = bit_pos >> array_bit_int_lg_block_size;
+	int bit_addr = bit_pos & array_bit_int_addr_mask;
 	array_int *data = (array_int *) (*abit).data;
 	return ((*data).e[addr] & array_bit_int_masks[bit_addr]) != 0;
 }
