@@ -12,6 +12,9 @@ Sources:
 #include "string.h"
 #include "math.h"
 #define INIT_A_MEM 8
+#define SORTED_INCREASING 1
+#define SORTED_DECREASING 2
+#define SORTED_CONST 3
 
 double ** bb_matrix_alloc(int M, int N);
 void bb_matrix_free(double **A, int M);
@@ -108,6 +111,13 @@ typedef struct gll
 	struct gll *next;
 } linked_list;
 
+typedef struct dgll
+{
+	void *data;
+	struct dgll *next;
+	struct dgll *prev;
+} dlinked_list;
+
 // A box list with a variable number of dimensions
 typedef struct 
 {
@@ -180,6 +190,7 @@ void merge_sort_array_voidstar(array_voidstar *a, void **e, int i, int j, char (
 void sort_array_voidstar(array_voidstar *a, char (*order)(void *, void *));
 
 void array_int_init(array_int *a, int size_);
+void array_int_init_range(array_int *a, int i0, int i1);
 char array_int_contains(array_int *a, int elem);
 int array_int_search(array_int *a, int elem);
 void add_mem_array_int(array_int *a);
@@ -193,9 +204,14 @@ void reset_array_int(array_int *a);
 void transcribe_array_int(array_int *a, array_int *b);
 void merge_array_int(array_int *a, int *e, int *c, int imin, int imax, int jmin, int jmax);
 void merge_sort_array_int(array_int *a, int *e, int i, int j);
+void merge_array_int_permutation(array_int *a, array_int *p, int *buf, int i0, int i1, int mdpt);
+void merge_sort_array_int_permutation(array_int *a, array_int *p, int *buf, int i0, int i1);
 void sort_array_int(array_int *a);
+void sort_array_int_permutation(array_int *a, array_int *p);
+char is_sorted_array_int(array_int *a);
 
 void array_double_init(array_double *a, int size_);
+void transcribe_array_double(array_double *src, array_double *dest);
 void add_mem_array_double(array_double *a);
 void add_mem_array_double_until(array_double *a, int i);
 void add2array_double(array_double *a, double i);
@@ -204,7 +220,6 @@ void remove_array_double(array_double *a, int n);
 void contract_array_double(array_double *a);
 void free_array_double(array_double *a);
 void reset_array_double(array_double *a);
-void transcribe_array_double(array_double *a, array_double *b);
 void merge_array_double(array_double *a, double *e, int *c, int imin, int imax, int jmin, int jmax);
 void merge_sort_array_double(array_double *a, double *e, int i, int j);
 void sort_array_double(array_double *a);
@@ -229,6 +244,7 @@ void sort_array_char(array_char *a);
 // methods for variable length arrays of variable length arrays
 void aarray_int_init(aarray_int *aa, int mem);
 void aarray_int_init_precise(aarray_int *aa, int mem1, int mem2);
+void transcribe_aarray_int(aarray_int *aa, aarray_int *aa_);
 void add_mem_aarray_int(aarray_int *aa);
 void contract_aarray_int(aarray_int *aa);
 void add_mem_aarray_int_until(aarray_int *aa, int i);
@@ -247,6 +263,7 @@ void sort_aarray_int(aarray_int *a, char (*order)(array_int *, array_int *));
 
 void aarray_double_init(aarray_double *aa, int mem);
 void aarray_double_init_precise(aarray_double *aa, int mem1, int mem2);
+void transcribe_aarray_double(aarray_double *aa, aarray_double *aa_);
 void add_mem_aarray_double(aarray_double *aa);
 void add_mem_aarray_double_until(aarray_double *aa, int i);
 void contract_aarray_double(aarray_double *a);
@@ -265,6 +282,7 @@ void sort_aarray_double(aarray_double *a, char (*order)(array_double *, array_do
 
 void aarray_char_init(aarray_char *aa, int mem);
 void aarray_char_init_precise(aarray_char *aa, int mem1, int mem2);
+void transcribe_aarray_char(aarray_char *aa, aarray_char *aa_);
 void add_mem_aarray_char(aarray_char *aa);
 void contract_aarray_char(aarray_char *aa);
 void add_mem_aarray_char_until(aarray_char *aa, int i);
@@ -284,8 +302,14 @@ void sort_aarray_char(aarray_char *a, char (*order)(array_char *, array_char *))
 // Methods for linked lists
 linked_list linked_list_init();
 void add2linked_list(linked_list *ll, void *elem);
-void* pop_linked_list(linked_list **ll);
-void free_linked_list(linked_list **ll);
+void insert_linked_list(linked_list *ll, void *elem);
+void* pop_linked_list(linked_list *ll);
+void free_linked_list(linked_list *ll, void (*ff)(void *));
+dlinked_list dlinked_list_init();
+void add2dlinked_list(dlinked_list *dll, void *elem);
+void insert_dlinked_list(dlinked_list *dll, void *elem);
+void *pop_dlinked_list(dlinked_list *dll);
+void free_dlinked_list(dlinked_list *dll, void (*ff)(void*));
 
 // methods for variable dimension box lists
 int flatten_vdim(int dim, int *m, int *box_index); 
@@ -323,6 +347,7 @@ void reset_boxlist2D(boxlist2D *bl);
 // methods for neighbor lists
 // RESUME: convert versions of initializers with non-void return values to void routines acting 
 //		on pointers.
+void transcribe_nbrlist(nbrlist *nb1, nbrlist *nb2);
 void nbrlist_init_precise(nbrlist *nbl, int mem);
 void nbrlist_init(nbrlist *nbl);
 void prep_nbrlist(nbrlist *nbl);
@@ -332,7 +357,7 @@ void extend_nbrlist_n(nbrlist *nbl, int N);
 void ensure_nbrlist_size_n(nbrlist *nbl, int N);
 void set_len_nbrlist(nbrlist *nbl, int len);
 void add_edge_nbrlist(nbrlist *nbl, int vertex1, int vertex2);
-void add_edge_nbrlist_safe(nbrlist *nbl, int vertex1, int vertex2);
+int add_edge_nbrlist_safe(nbrlist *nbl, int vertex1, int vertex2);
 void remove_edge_nbrlist_1way(nbrlist *nbl, int vertex, int local_nbr_index);
 void remove_edge_nbrlist(nbrlist *nbl, int vertex, int local_nbr_index);
 void remove_all_edges_nbrlist(nbrlist *nbl);
@@ -437,7 +462,5 @@ double array_double_min(double *a, int len);
 double array_double_max(double *a, int len);
 char array_char_min(char *a, int len);
 char array_char_max(char *a, int len);
-
-
 
 #endif

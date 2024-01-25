@@ -190,6 +190,29 @@ void array_int_init(array_int *a, int size_)
 	}
 }
 
+void array_int_init_range(array_int *a, int i0, int i1)
+{
+	int len = i1 - i0;
+	if (len > 0)
+	{
+		array_int_init(a, len);
+		for (int i = i0; i < i1; i++)
+		{
+			add2array_int(a, i);
+		}
+	}
+}
+
+void transcribe_array_int(array_int *src, array_int *dest)
+{
+	array_int_init(dest, (*src).mem);
+	(*dest).len = (*src).len;
+	for (int i = 0; i < (*src).len; i++)
+	{
+		(*dest).e[i] = (*src).e[i];
+	}
+}
+
 int array_int_search(array_int *a, int elem)
 {
 	for (int i = 0; i < (*a).len; i++)
@@ -301,16 +324,6 @@ void reset_array_int(array_int *a)
 	(*a).len = 0;
 }
 
-void transcribe_array_int(array_int *a, array_int *b)
-{
-	add_mem_array_int_until(a, (*b).len);
-	(*a).len = (*b).len;
-	for (int i = 0; i < (*b).len; i++)
-	{
-		(*a).e[i] = (*b).e[i];
-	}
-}
-
 void merge_array_int(array_int *a, int *e, int *c, int imin, int imax, int jmin, int jmax)
 {
 	if ((*a).e[imin] < (*a).e[jmin])
@@ -343,7 +356,7 @@ void merge_sort_array_int(array_int *a, int *e, int i, int j)
 	int jmi = j - i;
 	if (jmi > 2)
 	{
-		int mdpt = (i + j) / 2;
+		int mdpt = (i + j) >> 1;
 		merge_sort_array_int(a, e, i, mdpt);
 		merge_sort_array_int(a, e, mdpt, j);
 		// merge the two ordered lists
@@ -363,12 +376,50 @@ void merge_sort_array_int(array_int *a, int *e, int i, int j)
 	}
 }
 
+char is_sorted_array_int(array_int *a)
+{
+	if ((*a).len > 1)
+	{
+		char state_inc = 1;
+		char state_dec = 1;
+		int im1 = 0;
+		for (int i = 1; i < (*a).len; i++)
+		{
+			if ((*a).e[i] > (*a).e[im1]) state_dec = 0;
+			if ((*a).e[i] < (*a).e[im1]) state_inc = 0;
+			if (state_inc || state_dec) {}
+			else return 0;
+			im1 = i;
+		}
+		if (state_inc && !state_dec) return SORTED_INCREASING;
+		if (state_dec && !state_inc) return SORTED_DECREASING;
+		if (state_dec && state_inc) return SORTED_CONST;
+	}
+	else return 1;
+}
+
 void sort_array_int(array_int *a)
 {
-	int *e = (int *) calloc((*a).mem, sizeof(int));
-	merge_sort_array_int(a, e, 0, (*a).len);
-	free((*a).e);
-	(*a).e = e;
+	char status = is_sorted_array_int(a);
+	if (status == 0)
+	{
+		int *e = (int *) calloc((*a).mem, sizeof(int));
+		merge_sort_array_int(a, e, 0, (*a).len);
+		free((*a).e);
+		(*a).e = e;
+	}
+	else if (status == SORTED_DECREASING) // RESUME: #define this!
+	{
+		int hlength = (*a).len >> 1;
+		int ii = (*a).len;
+		for (int i = 0; i < hlength; i++)
+		{
+			ii -= 1;
+			int aux = (*a).e[i];
+			(*a).e[i] = (*a).e[ii];
+			(*a).e[ii] = aux;
+		}
+	}
 }
 
 // methods for variable length arrays of variable length arrays
@@ -388,6 +439,17 @@ void aarray_int_init_precise(aarray_int *aa, int mem1, int mem2)
 		array_int_init(&(*aa).e[i], mem2);
 	}
 	(*aa).len = 0;
+}
+
+void transcribe_aarray_int(aarray_int *aa, aarray_int *aa_)
+{
+	(*aa_).mem = (*aa).mem;
+	(*aa_).e = (array_int *) calloc((*aa).mem, sizeof(array_int));
+	(*aa_).len = (*aa).len;
+	for (int i = 0; i < (*aa).len; i++) 
+	{
+		transcribe_array_int(&((*aa).e[i]), &((*aa_).e[i]));
+	}
 }
 
 void add_mem_aarray_int(aarray_int *aa)
@@ -570,6 +632,17 @@ void print_aarray_int(aarray_int aa)
 void aarray_double_init(aarray_double *aa, int mem)
 {
 	aarray_double_init_precise(aa, mem, 0);
+}
+
+void transcribe_aarray_double(aarray_double *src, aarray_double *dest)
+{
+	(*dest).mem = (*src).mem;
+	(*dest).e = (array_double *) calloc((*dest).mem, sizeof(array_double));
+	(*dest).len = (*src).len;
+	for (int i = 0; i < (*src).len; i++)
+	{
+		transcribe_array_double(&((*src).e[i]), &((*dest).e[i]));
+	}
 }
 
 // An alternative to the last method that can be tuned to improve performance
@@ -757,17 +830,12 @@ linked_list linked_list_init()
 {
 	linked_list nll;
 	nll.next = NULL;
+	nll.data = NULL;
 	return nll;
 }
 
 void add2linked_list(linked_list *ll, void *elem)
 {
-	if ((*ll).next != NULL) {}
-	else 
-	{
-		(*ll).next = elem;
-		return;
-	}
 	linked_list *new = (linked_list *) calloc(1, sizeof(linked_list));
 	(*new).data = (*ll).data;
 	(*new).next = (*ll).next;
@@ -775,22 +843,76 @@ void add2linked_list(linked_list *ll, void *elem)
 	(*ll).next = new;
 }
 
-void* pop_linked_list(linked_list **ll)
+void insert_linked_list(linked_list *ll, void *elem)
 {
-	void *popped = (**ll).data;
-	linked_list *next_ll = (**ll).next;
-	free(*ll);
-	*ll = next_ll;
+	linked_list *new = (linked_list *) calloc(1, sizeof(linked_list));
+	(*new).data = elem;
+	(*new).next = (*ll).next;
+	(*ll).next = new;
+}
+
+void* pop_linked_list(linked_list *ll)
+{
+	void *popped = (*ll).data;
+	linked_list *next_ll = (*ll).next;
+	(*ll) = (*next_ll);
+	free(next_ll);
 	return popped;
 }
 
-void free_linked_list(linked_list **ll)
+void free_linked_list(linked_list *ll, void (*ff)(void *))
 {
-	while ((**ll).next != NULL) pop_linked_list(ll);
+	while ((*ll).next != NULL) 
+	{
+		void *data = pop_linked_list(ll);
+		if (ff != NULL) ff(data);
+	}
 }
 
+dlinked_list dlinked_list_init()
+{
+	dlinked_list dll;
+	dll.next = NULL;
+	dll.prev = NULL;
+	dll.data = NULL;
+}
 
-// 
+void add2dlinked_list(dlinked_list *dll, void *elem)
+{
+	dlinked_list *ndll = (dlinked_list *) calloc(1, sizeof(dlinked_list));
+	(*ndll).next = (*dll).next;
+	(*ndll).prev = dll;
+	(*ndll).data = (*dll).data;
+	(*dll).next = ndll;
+	(*dll).data = elem;
+}
+
+void insert_dlinked_list(dlinked_list *dll, void *elem)
+{
+	dlinked_list *ndll = (dlinked_list *) calloc(1, sizeof(dlinked_list));
+	(*ndll).next = (*dll).next;
+	(*ndll).prev = dll;
+	(*ndll).data = elem;
+	(*dll).next = ndll;
+}
+
+void *pop_dlinked_list(dlinked_list *dll)
+{
+	void *elem = (*dll).data;
+	(*dll).data = (*(*dll).next).data;
+	(*dll).next = (*(*dll).next).next;
+	(*(*(*dll).next).next).prev = dll;
+	free((*dll).next);
+}
+
+void free_dlinked_list(dlinked_list *dll, void (*ff)(void *))
+{
+	while ((*dll).next != NULL)
+	{
+		void *data = pop_dlinked_list(dll);
+		if (ff != NULL) ff(data);
+	}
+}
 
 // methods for variable dimension box lists
 void move_boxlist_elem(boxlist *bl, int elem, int new_box_index)
@@ -1171,6 +1293,12 @@ boxlist2D boxlist2D_init(int m, int n)
 // Methods for neighbor lists
 // RESUME: update all instances of nbrlists being initialized to be consistent with the new 
 //		convention.
+void transcribe_nbrlist(nbrlist *nb1, nbrlist *nb2)
+{
+	transcribe_aarray_int(&((*nb1).v), &((*nb2).v));
+	transcribe_aarray_int(&((*nb1).i_of), &((*nb2).i_of));
+}
+
 void nbrlist_init_precise(nbrlist *nbl, int mem)
 {
 	if (nbl == NULL)
@@ -1282,7 +1410,7 @@ void ensure_nbrlist_size_n(nbrlist *nbl, int N)
 	}
 }
 
-void add_edge_nbrlist_safe(nbrlist *nbl, int vertex1, int vertex2)
+int add_edge_nbrlist_safe(nbrlist *nbl, int vertex1, int vertex2)
 {
 	int vsl[2] = {vertex1, vertex2};
 	if ((*nbl).v.e[vertex1].len < (*nbl).v.e[vertex2].len) {}
@@ -1296,10 +1424,15 @@ void add_edge_nbrlist_safe(nbrlist *nbl, int vertex1, int vertex2)
 		if ((*nbl).v.e[vsl[0]].e[i] != vsl[1]) {}
 		else
 		{
-			return;
+			if (vsl[0] == vertex1) return i;
+			else
+			{
+				return (*nbl).i_of.e[vsl[0]].e[i];
+			}
 		}
 	}
 	add_edge_nbrlist(nbl, vertex1, vertex2);
+	return -1;
 }
 
 void add_edge_nbrlist(nbrlist *nbl, int vertex1, int vertex2)
@@ -1727,6 +1860,16 @@ void array_double_init(array_double *a, int size_)
 	(*a).len = 0;
 }
 
+void transcribe_array_double(array_double *src, array_double *dest)
+{
+	array_double_init(dest, (*src).mem);
+	(*dest).len = (*src).len;
+	for (int i = 0; i < (*src).len; i++)
+	{
+		(*dest).e[i] = (*src).e[i];
+	}
+}
+
 void add_mem_array_double(array_double *a)
 {
 	if ((*a).mem > 0) {}
@@ -1820,16 +1963,6 @@ void reset_array_double(array_double *a)
 	(*a).len = 0;
 }
 
-void transcribe_array_double(array_double *a, array_double *b)
-{
-	add_mem_array_double_until(a, (*b).len);
-	(*a).len = (*b).len;
-	for (int i = 0; i < (*b).len; i++)
-	{
-		(*a).e[i] = (*b).e[i];
-	}
-}
-
 void merge_array_double(array_double *a, double *e, int *c, int imin, int imax, int jmin, int jmax)
 {
 	if ((*a).e[imin] < (*a).e[jmin])
@@ -1904,6 +2037,16 @@ void array_char_init(array_char *a, int size_)
 		(*a).e = NULL;
 		(*a).mem = 0;
 		(*a).len = 0;
+	}
+}
+
+void transcribe_array_char(array_char *src, array_char *dest)
+{
+	array_char_init(dest, (*src).mem);
+	(*dest).len = (*src).len;
+	for (int i = 0; i < (*src).len; i++)
+	{
+		(*dest).e[i] = (*src).e[i];
 	}
 }
 
@@ -2033,16 +2176,6 @@ void reset_array_char(array_char *a)
 	(*a).len = 0;
 }
 
-void transcribe_array_char(array_char *a, array_char *b)
-{
-	add_mem_array_char_until(a, (*b).len);
-	(*a).len = (*b).len;
-	for (int i = 0; i < (*b).len; i++)
-	{
-		(*a).e[i] = (*b).e[i];
-	}
-}
-
 void merge_array_char(array_char *a, char *e, int *c, int imin, int imax, int jmin, int jmax)
 {
 	if ((*a).e[imin] < (*a).e[jmin])
@@ -2109,6 +2242,17 @@ void sort_array_char(array_char *a)
 void aarray_char_init(aarray_char *aa, int mem)
 {
 	aarray_char_init_precise(aa, mem, 0);
+}
+
+void transcribe_aarray_char(aarray_char *src, aarray_char *dest)
+{
+	(*dest).mem = (*src).mem;
+	(*dest).e = (array_char *) calloc((*dest).mem, sizeof(array_char));
+	(*dest).len = (*src).len;
+	for (int i = 0; i < (*src).len; i++)
+	{
+		transcribe_array_char(&((*src).e[i]), &((*dest).e[i]));
+	}
 }
 
 // An alternative to the last method that can be tuned to improve performance
@@ -3412,4 +3556,144 @@ char array_char_max(char *a, int len)
 		}
 	}
 	return max_a;
+}
+
+// This might be easier with 'cyclable' arrays
+void merge_array_int_permutation(array_int *a, array_int *p, int *buf, int i0, int i1, int mdpt)
+{
+	printf("Merging: ");
+	for (int i = i0; i < mdpt; i++)
+	{
+		printf("%d ", (*a).e[(*p).e[i]]);
+	}
+	printf(" and ");
+	for (int i = mdpt; i < i1; i++)
+	{
+		printf("%d ", (*a).e[(*p).e[i]]);
+	}
+	printf("\n");
+	if ((*a).e[(*p).e[mdpt]] >= (*a).e[(*p).e[mdpt - 1]]) 
+	{
+		return;
+	}
+	else if ((*a).e[(*p).e[i0]] >= (*a).e[(*p).e[i1 - 1]])
+	{
+		// case mdpt - i0 > i1 - mdpt:
+		// p[i0 + 1: mdpt] -> p[mdpt : i1] -> p[i0 : mdpt - 1] 
+		// p[i0] -> p[mdpt - 1]
+		// case mdpt - i0 == i1 - mdpt:
+		// p[i0 : mdpt] <-> p[mdpt : i1]
+		int mdptmi0 = mdpt - i0;
+		int i1mmdpt = i1 - mdpt;
+		for (int i = 0; i < i1mmdpt; i++)
+		{
+			int ipi0 = i + i0;
+			buf[ipi0] = (*p).e[i + mdpt];
+		}
+		for (int i = 0; i < mdptmi0; i++)
+		{
+			buf[i + i1mmdpt] = (*p).e[i + i0];
+		}
+		for (int i = i0; i < i1; i++) (*p).e[i] = buf[i];
+		return;
+	}
+	int term = mdpt;
+	int c0 = i0;
+	int c1 = mdpt;
+	int c = i0;
+	while ((c0 < mdpt) && (c1 < i1))
+	{
+		
+		if ((*a).e[(*p).e[c0]] <= (*a).e[(*p).e[c1]])
+		{
+			buf[c] = (*p).e[c0];
+			c0 += 1;
+			c += 1;
+		}
+		else
+		{
+			buf[c] = (*p).e[c1];
+			c1 += 1;
+			c += 1;
+		}
+	}
+	if (c0 < mdpt)
+	{
+		while (c < i1)
+		{
+			buf[c] = (*p).e[c0];
+			c += 1;
+			c0 += 1;
+		}
+	}
+	if (c1 < i1)
+	{
+		if (c == c1) {}
+		else
+		{
+			printf("Something weird happened in merge_array_int_permutation! left half of array folded in, but c = %d != c1 = %d!\n", c, c1);
+			exit(EXIT_FAILURE);
+		}
+		while (c < i1)
+		{
+			buf[c] = (*p).e[c1];
+			c += 1;
+			c1 += 1;
+		}
+	}
+	for (int i = i0; i < i1; i++)
+	{
+		printf("%d ", (*a).e[buf[i]]);
+	}
+	printf("\n");
+	for (int i = i0; i < i1; i++)
+	{
+		(*p).e[i] = buf[i];
+	}
+}
+
+void merge_sort_array_int_permutation(array_int *a, array_int *p, int *buf, int i0, int i1)
+{
+	int i1mi0 = i1 - i0;
+	if (i1mi0 > 2)
+	{
+		int mdpt = (i0 + i1 + 1) >> 1; 
+		merge_sort_array_int_permutation(a, p, buf, i0, mdpt);
+		merge_sort_array_int_permutation(a, p, buf, mdpt, i1);
+		merge_array_int_permutation(a, p, buf, i0, i1, mdpt);
+	}
+	else
+	{
+		if (i1mi0 < 2) return;
+		else
+		{
+			int i0p1 = i0 + 1;
+			if ((*a).e[(*p).e[i0]] < (*a).e[(*p).e[i0p1]]) 
+			{
+				buf[i0] = (*p).e[i0];
+				buf[i0p1] = (*p).e[i0p1];
+			}
+			else
+			{
+				buf[i0] = (*p).e[i0p1];
+				buf[i0p1] = (*p).e[i0];
+			}
+			(*p).e[i0] = buf[i0];
+			(*p).e[i0p1] = buf[i0p1];
+		}
+	}
+}
+
+void sort_array_int_permutation(array_int *a, array_int *p)
+{
+	if ((*a).len == (*p).len) {}
+	else
+	{
+		array_int_init(p, (*a).len);
+		for (int i = 0; i < (*a).len; i++) (*p).e[i] = i;
+		(*p).len = (*a).len;
+	}
+	int *buf = (int *) calloc((*p).len, sizeof(int));
+	merge_sort_array_int_permutation(a, p, buf, 0, (*a).len);
+	free(buf);
 }
