@@ -222,10 +222,12 @@ void free_array_double(array_double *a);
 void reset_array_double(array_double *a);
 void merge_array_double(array_double *a, double *e, int *c, int imin, int imax, int jmin, int jmax);
 void merge_sort_array_double(array_double *a, double *e, int i, int j);
+void sort_array_double_permutation(array_double *a, array_int *p);
 void sort_array_double(array_double *a);
 
 void array_char_init(array_char *a, int size_);
 char array_char_contains(array_char *a, char elem);
+char array_char_contains_substring(array_char *a, char *b, int b_len);
 int array_char_search(array_char *a, char elem);
 void add_mem_array_char(array_char *a);
 void add_mem_array_char_until(array_char *a, int i);
@@ -314,12 +316,15 @@ void free_dlinked_list(dlinked_list *dll, void (*ff)(void*));
 // methods for variable dimension box lists
 int flatten_vdim(int dim, int *m, int *box_index); 
 void unflatten_box_index(int dim, int *m, int *flatbi, int *unflatbi);
-
+int boxlist_box_size(boxlist *bl, int *box_index);
 void add2box(boxlist *bl, int elem, int *box_index);
 void add2box_preflattened(boxlist *bl, int elem, int fbox_index);
-void remove_boxlist_elem(boxlist *bl, int *box_index, int content_index);
+void remove_boxlist_elem_by_addr_pf(boxlist *bl, int fi, int ci);
+void remove_boxlist_elem(boxlist *bl, int i);
+void remove_boxlist_elem_by_addr(boxlist *bl, int *box_index, int content_index);
 void free_boxlist(boxlist *bl);
-boxlist boxlist_init(int dim, int *m); // RESUME: consider replacing this with a void version
+char check_boxlist_consistency(boxlist *bl);
+void boxlist_init(boxlist *bl, int *m, int dim); 
 void move_boxlist_elem(boxlist *bl, int elem, int box_index);
 void reset_boxlist(boxlist *bl);
 void print_boxlist_counts(boxlist *bl);
@@ -365,7 +370,10 @@ void remove_edges_vertex_nbrlist(nbrlist *nbl, int vertex);
 void remove_vertex_nbrlist(nbrlist *nbl, int vertex);
 void fprintf_nbrlist(nbrlist *nbl, FILE *ofile);
 void write_nbrlist(nbrlist *nbl, char *ofname);
+void load_nbrlist(nbrlist *nbl, char *ifname);
 void free_nbrlist(nbrlist *nbl);
+int nbrlist_i_of(nbrlist *nbl, int i, int j);
+char nbrlist_has_edge(nbrlist *nbl, int i, int j);
 int N_vertices_nbrlist(nbrlist *nbl);
 int N_nbors_nbrlist(nbrlist *nbl, int v_index);
 

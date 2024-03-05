@@ -137,24 +137,27 @@ void contract_array_voidstar(array_voidstar *a, void (*free_elem)(void *))
 
 void free_array_voidstar(array_voidstar *a, void (*free_elem)(void *))
 {
-	if ((*a).e != NULL) 
+	if ((*a).mem > 0)
 	{
-		if (free_elem != NULL)
+		if ((*a).e != NULL) 
 		{
-			for (int i = 0; i < (*a).len; i++) 
+			if (free_elem != NULL)
 			{
-				if ((*a).e[i] != NULL) 
+				for (int i = 0; i < (*a).len; i++) 
 				{
-					free_elem((*a).e[i]);
-					free((*a).e[i]);
+					if ((*a).e[i] != NULL) 
+					{
+						free_elem((*a).e[i]);
+						free((*a).e[i]);
+					}
 				}
 			}
+			free((*a).e);
+			(*a).e = NULL;
 		}
-		free((*a).e);
-		(*a).e = NULL;
+		(*a).len = 0;
+		(*a).mem = 0;
 	}
-	(*a).len = 0;
-	(*a).mem = 0;
 }
 
 // NOTE: this function should be rarely used (and all pointers in the array should be freed independently.)
@@ -313,10 +316,13 @@ void contract_array_int(array_int *a)
 
 void free_array_int(array_int *a)
 {
-	if ((*a).e != NULL) free((*a).e);
-	(*a).e = NULL;
-	(*a).len = 0;
-	(*a).mem = 0;
+	if ((*a).mem > 0)
+	{
+		if ((*a).e != NULL) free((*a).e);
+		(*a).e = NULL;
+		(*a).len = 0;
+		(*a).mem = 0;
+	}
 }
 
 void reset_array_int(array_int *a)
@@ -604,14 +610,17 @@ void remove_aarray_int(aarray_int *aa, int i)
 
 void free_aarray_int(aarray_int *aa)
 {
-	int i = 0;
-	while (i < (*aa).mem && (*aa).e[i].mem > 0)
+	if ((*aa).mem > 0)
 	{
-		free_array_int(&((*aa).e[i]));
-		// free(&((*aa).e[i])); // RESUME: Check this! 000
-		i += 1;
+		int i = 0;
+		while (i < (*aa).mem && (*aa).e[i].mem > 0)
+		{
+			free_array_int(&((*aa).e[i]));
+			// free(&((*aa).e[i])); // RESUME: Check this! 000
+			i += 1;
+		}
+		free((*aa).e);
 	}
-	free((*aa).e);
 }
 
 void print_aarray_int(aarray_int aa)
@@ -800,14 +809,17 @@ void remove_aarray_double(aarray_double *aa, int i)
 
 void free_aarray_double(aarray_double *aa)
 {
-	int i = 0;
-	while (i < (*aa).mem && (*aa).e[i].mem > 0)
+	if ((*aa).mem > 0)
 	{
-		free_array_double(&((*aa).e[i]));
-		// free(&((*aa).e[i])); // RESUME: Check this! 000
-		i += 1;
+		int i = 0;
+		while (i < (*aa).mem && (*aa).e[i].mem > 0)
+		{
+			free_array_double(&((*aa).e[i]));
+			// free(&((*aa).e[i])); // RESUME: Check this! 000
+			i += 1;
+		}
+		free((*aa).e);
 	}
-	free((*aa).e);
 }
 
 void print_aarray_double(aarray_double aa)
@@ -976,7 +988,7 @@ void unflatten_box_index3D(int *m, int *flatbi, int *unflatbi)
 void add2box(boxlist *bl, int elem, int *box_index)
 {
 	// Consider using a more parsimonious data structure for the boxlist address elements
-	//	(as each has a known length)
+	//	(because they all have equal length)
 	array_int new_addr;
 	array_int_init(&new_addr, 3);
 	int fi = flatten_vdim((*bl).dim, (*bl).m, box_index);
@@ -985,9 +997,7 @@ void add2box(boxlist *bl, int elem, int *box_index)
 	new_addr.e[1] = (*bl).boxc.e[fi].len;
 	new_addr.e[2] = elem;
 	add2aarray_int_elem(&((*bl).boxc), fi, (*bl).addr.len);
-	add2aarray_int(&((*bl).addr), new_addr); // WARNING: POTENTIAL MEMORY PROBLEM (try to test this)
-	// RESUME: Consider either revising the basic aarray structure so that additional arrays can be 
-	//		incorporated directly without transcribing their contents, or clearing new_addr at the end of this.
+	add2aarray_int(&((*bl).addr), new_addr); 
 }
 
 void add2box_preflattened(boxlist *bl, int elem, int fbox_index)
@@ -1002,11 +1012,43 @@ void add2box_preflattened(boxlist *bl, int elem, int fbox_index)
 	add2aarray_int(&((*bl).addr), new_addr);
 }
 
-// this function has an effect on both addr and boxc
-//	- remove an element from the box list
-void remove_boxlist_elem(boxlist *bl, int *box_index, int content_index)
+int boxlist_box_size(boxlist *bl, int *box_index)
 {
 	int fi = flatten_vdim((*bl).dim, (*bl).m, box_index);
+	return (*bl).boxc.e[fi].len;
+}
+
+char check_boxlist_consistency(boxlist *bl)
+{
+	for (int i = 0; i < (*bl).addr.len; i++)
+	{
+		int fi = (*bl).addr.e[i].e[0];
+		int ci = (*bl).addr.e[i].e[1];
+		if ((*bl).boxc.e[fi].e[ci] == i) {}
+		else
+		{
+			return 0;
+		}
+	}
+	for (int i = 0; i < (*bl).boxc.len; i++)
+	{
+		for (int ci = 0; ci < (*bl).boxc.e[i].len; ci++)
+		{
+			int ii = (*bl).boxc.e[i].e[ci];
+			int cii = (*bl).addr.e[ii].e[1];
+			int fii = (*bl).addr.e[ii].e[0];
+			if (cii == ci && fii == i) {}
+			else
+			{
+				return 0;
+			}
+		}
+	}
+	return 1;
+}
+
+void remove_boxlist_elem_by_addr_pf(boxlist *bl, int fi, int content_index)
+{
 	if ((*bl).boxc.e[fi].len > content_index) {}
 	else
 	{
@@ -1017,17 +1059,43 @@ void remove_boxlist_elem(boxlist *bl, int *box_index, int content_index)
 	// Remove (*bl).addr.e[addri] by copying data from the last entry
 	remove_aarray_int(&(*bl).addr, addri);
 	// 	(Update the address that appears in the box specified by addr.e[addri])
-	int bi = (*bl).addr.e[addri].e[0];
-	int ci = (*bl).addr.e[addri].e[1];
-	int id_ = (*bl).addr.e[addri].e[2];
-	(*bl).boxc.e[bi].e[ci] = addri;
+	if ((*bl).addr.len > 0)
+	{
+		int bi = (*bl).addr.e[addri].e[0];
+		int ci = (*bl).addr.e[addri].e[1];
+		int id_ = (*bl).addr.e[addri].e[2];
+		(*bl).boxc.e[bi].e[ci] = addri;
+	}
 	// Remove the element from the associated box
 	remove_array_int(&((*bl).boxc.e[fi]), content_index);
-	if ((*bl).boxc.e[fi].len > 0)
+	if ((*bl).boxc.e[fi].len > 0 && content_index < (*bl).boxc.e[fi].len)
 	{
 		int last_addr = (*bl).boxc.e[fi].e[content_index];
 		(*bl).addr.e[last_addr].e[1] = content_index;
 	}
+}
+
+void remove_boxlist_elem(boxlist *bl, int i)
+{
+	array_int addr_i = (*bl).addr.e[i];
+	int fi = addr_i.e[0];
+	int ci = addr_i.e[1];
+	remove_boxlist_elem_by_addr_pf(bl, fi, ci);
+}
+
+// this function has an effect on both addr and boxc
+//	- remove an element from the box list
+void remove_boxlist_elem_by_addr(boxlist *bl, int *box_index, int content_index)
+{
+	int fi = flatten_vdim((*bl).dim, (*bl).m, box_index);
+	remove_boxlist_elem_by_addr_pf(bl, fi, content_index);
+	/*if (check_boxlist_consistency(bl)) {}
+	else
+	{
+		printf("Error: boxlist failed consistency check trying to remove element %d from box %d %d of length %d\n", content_index, box_index[0], box_index[1], (*bl).boxc.e[fi].len);
+		exit(EXIT_FAILURE);
+	}*/
+
 }
 
 void free_boxlist(boxlist *bl)
@@ -1037,24 +1105,22 @@ void free_boxlist(boxlist *bl)
 	free((*bl).m);
 }
 
-boxlist boxlist_init(int dim, int *m)
+void boxlist_init(boxlist *bl, int *m, int dim)
 {
-	boxlist bl;
-	bl.dim = dim;
-	bl.m = (int *) calloc(dim, sizeof(int));
-	for (int i = 0; i < dim; i++) bl.m[i] = m[i];
+	(*bl).dim = dim;
+	(*bl).m = (int *) calloc(dim, sizeof(int));
+	for (int i = 0; i < dim; i++) (*bl).m[i] = m[i];
 	if (dim > 0)
 	{
-		int Nboxes = bl.m[0];
+		int Nboxes = (*bl).m[0];
 		for (int i = 1; i < dim; i++)
 		{
-			Nboxes *= bl.m[i];
+			Nboxes *= (*bl).m[i];
 		}
-		aarray_int_init_precise(&(bl.addr), 1, 3);
-		aarray_int_init_precise(&(bl.boxc), Nboxes, 1);
-		bl.boxc.len = Nboxes;
+		aarray_int_init_precise(&((*bl).addr), 1, 3);
+		aarray_int_init_precise(&((*bl).boxc), Nboxes, 1);
+		(*bl).boxc.len = Nboxes;
 	}
-	return bl;
 }
 
 void init_counter(int *counter, int dim)
@@ -1299,6 +1365,33 @@ void transcribe_nbrlist(nbrlist *nb1, nbrlist *nb2)
 	transcribe_aarray_int(&((*nb1).i_of), &((*nb2).i_of));
 }
 
+int nbrlist_i_of(nbrlist *nbl, int i, int j)
+{
+	int i_of_ij = -1;
+	for (int ni = 0; ni < (*nbl).v.e[j].len; ni++)
+	{
+		int ii = (*nbl).v.e[j].e[ni];
+		if (ii == i) 
+		{
+			i_of_ij = ni;
+			break;
+		}
+	}
+	return i_of_ij;
+}
+
+char nbrlist_has_edge(nbrlist *nbl, int i, int j)
+{
+	if ((*nbl).v.e[i].len <= (*nbl).v.e[j].len) {}
+	else return nbrlist_has_edge(nbl, j, i);
+	for (int ni = 0; ni < (*nbl).v.e[i].len; ni++)
+	{
+		int ii = (*nbl).v.e[i].e[ni];
+		if (ii == j) return 1;
+	}
+	return 0;
+}
+
 void nbrlist_init_precise(nbrlist *nbl, int mem)
 {
 	if (nbl == NULL)
@@ -1478,15 +1571,37 @@ void remove_edge_nbrlist_1way(nbrlist *nbl, int vertex, int local_nbr_index)
 	}
 }
 
+void check_nbrlist_local_consistency(nbrlist *nbl, int v)
+{
+	for (int ni = 0; ni < (*nbl).v.e[v].len; ni++)
+	{
+		int ii = (*nbl).v.e[v].e[ni];
+		int i_v_ii = (*nbl).i_of.e[v].e[ni];
+		int i_ii_v = (*nbl).i_of.e[ii].e[i_v_ii];
+		if (i_ii_v == ni) {}
+		else
+		{
+			printf("Neighborlist failed consistency check at vertex %d (neighbor index = %d != %d)\n", v, ni, i_ii_v);
+			exit(EXIT_FAILURE);
+		}
+	}
+}
+
 void remove_edge_nbrlist(nbrlist *nbl, int vertex, int local_nbr_index)
 {
+	if (local_nbr_index > -1 && vertex > -1) {}
+	else
+	{
+		printf("Error (remove_edge_nbrlist): attempting to remove non-existent edge v.e[%d].e[%d]\n", vertex, local_nbr_index);
+		exit(EXIT_FAILURE);
+	}
 	int vertex_ = (*nbl).v.e[vertex].e[local_nbr_index];
 	int local_nbr_index_ = (*nbl).i_of.e[vertex].e[local_nbr_index];
 	if (local_nbr_index_ > -1)
 	{
 		remove_array_int(&(*nbl).v.e[vertex_], local_nbr_index_);
 		remove_array_int(&(*nbl).i_of.e[vertex_], local_nbr_index_);
-		if ((*nbl).v.e[vertex_].len > 0)
+		if ((*nbl).v.e[vertex_].len > local_nbr_index_)
 		{
 			int vertex__ = (*nbl).v.e[vertex_].e[local_nbr_index_];
 			int local_nbr_index__ = (*nbl).i_of.e[vertex_].e[local_nbr_index_];
@@ -1495,7 +1610,7 @@ void remove_edge_nbrlist(nbrlist *nbl, int vertex, int local_nbr_index)
 	}
 	remove_array_int(&(*nbl).v.e[vertex], local_nbr_index);
 	remove_array_int(&(*nbl).i_of.e[vertex], local_nbr_index);
-	if ((*nbl).v.e[vertex].len > 0)
+	if ((*nbl).v.e[vertex].len > local_nbr_index)
 	{
 		int _vertex = (*nbl).v.e[vertex].e[local_nbr_index];
 		int _local_nbr_index = (*nbl).i_of.e[vertex].e[local_nbr_index];
@@ -1527,12 +1642,11 @@ void remove_vertex_nbrlist(nbrlist *nbl, int vertex)
 void remove_edges_vertex_nbrlist(nbrlist *nbl, int vertex)
 {
 	int i = (*nbl).v.e[vertex].len;
-	do
+	while (i > 0)
 	{
 		i -= 1;
 		remove_edge_nbrlist(nbl, vertex, i);
 	} 
-	while (i > 0);
 }
 
 void remove_all_edges_nbrlist(nbrlist *nbl)
@@ -1952,10 +2066,13 @@ void contract_array_double(array_double *a)
 
 void free_array_double(array_double *a)
 {
-	if ((*a).e != NULL) free((*a).e);
-	(*a).e = NULL;
-	(*a).len = 0;
-	(*a).mem = 0;
+	if ((*a).mem > 0)
+	{
+		if ((*a).e != NULL) free((*a).e);
+		(*a).e = NULL;
+		(*a).len = 0;
+		(*a).mem = 0;
+	}
 }
 
 void reset_array_double(array_double *a)
@@ -2038,6 +2155,30 @@ void array_char_init(array_char *a, int size_)
 		(*a).mem = 0;
 		(*a).len = 0;
 	}
+}
+
+char array_char_local_match(array_char *a, int i, char *b, int b_len)
+{
+	char *ae = &((*a).e[i]);
+	for (int ii = 0; ii < b_len; ii++)
+	{
+		if (ae[ii] == b[ii]) {}
+		else return 0;
+	}
+	return 1;
+}
+
+char array_char_contains_substring(array_char *a, char *b, int b_len)
+{
+	if ((*a).len >= b_len)
+	{
+		int ulim = (*a).len - b_len;
+		for (int i = 0; i <= ulim; i++)
+		{
+			if (array_char_local_match(a, i, b, b_len)) return 1;
+		}
+	}
+	return 0;
 }
 
 void transcribe_array_char(array_char *src, array_char *dest)
@@ -2165,10 +2306,13 @@ void contract_array_char(array_char *a)
 
 void free_array_char(array_char *a)
 {
-	if ((*a).e != NULL) free((*a).e);
-	(*a).len = 0;
-	(*a).e = NULL;
-	(*a).mem = 0;
+	if ((*a).mem > 0)
+	{
+		if ((*a).e != NULL) free((*a).e);
+		(*a).len = 0;
+		(*a).e = NULL;
+		(*a).mem = 0;
+	}
 }
 
 void reset_array_char(array_char *a)
@@ -2410,14 +2554,17 @@ void remove_aarray_char(aarray_char *aa, int i)
 
 void free_aarray_char(aarray_char *aa)
 {
-	int i = 0;
-	while (i < (*aa).mem && (*aa).e[i].mem > 0)
+	if ((*aa).mem > 0)
 	{
-		free_array_char(&((*aa).e[i]));
-		// free(&((*aa).e[i])); // RESUME: Check this! 000
-		i += 1;
+		int i = 0;
+		while (i < (*aa).mem && (*aa).e[i].mem > 0)
+		{
+			free_array_char(&((*aa).e[i]));
+			// free(&((*aa).e[i])); // RESUME: Check this! 000
+			i += 1;
+		}
+		free((*aa).e);
 	}
-	free((*aa).e);
 }
 
 void print_aarray_char(aarray_char aa)
@@ -3561,17 +3708,6 @@ char array_char_max(char *a, int len)
 // This might be easier with 'cyclable' arrays
 void merge_array_int_permutation(array_int *a, array_int *p, int *buf, int i0, int i1, int mdpt)
 {
-	printf("Merging: ");
-	for (int i = i0; i < mdpt; i++)
-	{
-		printf("%d ", (*a).e[(*p).e[i]]);
-	}
-	printf(" and ");
-	for (int i = mdpt; i < i1; i++)
-	{
-		printf("%d ", (*a).e[(*p).e[i]]);
-	}
-	printf("\n");
 	if ((*a).e[(*p).e[mdpt]] >= (*a).e[(*p).e[mdpt - 1]]) 
 	{
 		return;
@@ -3585,14 +3721,19 @@ void merge_array_int_permutation(array_int *a, array_int *p, int *buf, int i0, i
 		// p[i0 : mdpt] <-> p[mdpt : i1]
 		int mdptmi0 = mdpt - i0;
 		int i1mmdpt = i1 - mdpt;
+		int *seg_a = &(buf[i0]);
+		int *seg_b = &((*p).e[mdpt]);
 		for (int i = 0; i < i1mmdpt; i++)
 		{
-			int ipi0 = i + i0;
-			buf[ipi0] = (*p).e[i + mdpt];
+			//int ipi0 = i + i0;
+			seg_a[i] = seg_b[i];
+			//buf[ipi0] = (*p).e[i + mdpt];
 		}
+		seg_a = &(buf[i1 - mdptmi0]);
+		seg_b = &((*p).e[i0]);
 		for (int i = 0; i < mdptmi0; i++)
 		{
-			buf[i + i1mmdpt] = (*p).e[i + i0];
+			seg_a[i] = seg_b[i];
 		}
 		for (int i = i0; i < i1; i++) (*p).e[i] = buf[i];
 		return;
@@ -3643,13 +3784,138 @@ void merge_array_int_permutation(array_int *a, array_int *p, int *buf, int i0, i
 	}
 	for (int i = i0; i < i1; i++)
 	{
-		printf("%d ", (*a).e[buf[i]]);
+		(*p).e[i] = buf[i];
 	}
-	printf("\n");
+}
+
+void merge_array_double_permutation(array_double *a, array_int *p, int *buf, int i0, int i1, int mdpt)
+{
+	if (i0 < mdpt && mdpt < i1) {}
+	else return;
+	if ((*a).e[(*p).e[mdpt]] >= (*a).e[(*p).e[mdpt - 1]]) 
+	{
+		return;
+	}
+	else if ((*a).e[(*p).e[i0]] >= (*a).e[(*p).e[i1 - 1]])
+	{
+		// case mdpt - i0 > i1 - mdpt:
+		// p[i0 + 1: mdpt] -> p[mdpt : i1] -> p[i0 : mdpt - 1] 
+		// p[i0] -> p[mdpt - 1]
+		// case mdpt - i0 == i1 - mdpt:
+		// p[i0 : mdpt] <-> p[mdpt : i1]
+		int mdptmi0 = mdpt - i0;
+		int i1mmdpt = i1 - mdpt;
+		int *seg_a = &(buf[i0]);
+		int *seg_b = &((*p).e[mdpt]);
+		for (int i = 0; i < i1mmdpt; i++)
+		{
+			//int ipi0 = i + i0;
+			seg_a[i] = seg_b[i];
+			//buf[ipi0] = (*p).e[i + mdpt];
+		}
+		seg_a = &(buf[i1 - mdptmi0]);
+		seg_b = &((*p).e[i0]);
+		for (int i = 0; i < mdptmi0; i++)
+		{
+			seg_a[i] = seg_b[i];
+			// buf[i + i1mmdpt] = (*p).e[i + i0];
+		}
+		for (int i = i0; i < i1; i++) (*p).e[i] = buf[i];
+		return;
+	}
+	int term = mdpt;
+	int c0 = i0;
+	int c1 = mdpt;
+	int c = i0;
+	while ((c0 < mdpt) && (c1 < i1))
+	{
+		if ((*a).e[(*p).e[c0]] <= (*a).e[(*p).e[c1]])
+		{
+			buf[c] = (*p).e[c0];
+			c0 += 1;
+			c += 1;
+		}
+		else
+		{
+			buf[c] = (*p).e[c1];
+			c1 += 1;
+			c += 1;
+		}
+	}
+	if (c0 < mdpt)
+	{
+		while (c < i1)
+		{
+			buf[c] = (*p).e[c0];
+			c += 1;
+			c0 += 1;
+		}
+	}
+	if (c1 < i1)
+	{
+		if (c == c1) {}
+		else
+		{
+			printf("Something weird happened in merge_array_int_permutation! left half of array folded in, but c = %d != c1 = %d!\n", c, c1);
+			exit(EXIT_FAILURE);
+		}
+		while (c < i1)
+		{
+			buf[c] = (*p).e[c1];
+			c += 1;
+			c1 += 1;
+		}
+	}
 	for (int i = i0; i < i1; i++)
 	{
 		(*p).e[i] = buf[i];
 	}
+
+}
+
+void merge_sort_array_double_permutation(array_double *a, array_int *p, int *buf, int i0, int i1)
+{
+	int i1mi0 = i1 - i0;
+	if (i1mi0 > 2)
+	{
+		int mdpt = (i0 + i1 + 1) >> 1; 
+		merge_sort_array_double_permutation(a, p, buf, i0, mdpt);
+		merge_sort_array_double_permutation(a, p, buf, mdpt, i1);
+		merge_array_double_permutation(a, p, buf, i0, i1, mdpt);
+	}
+	else
+	{
+		if (i1mi0 < 2) return;
+		else
+		{
+			int i0p1 = i0 + 1;
+			if ((*a).e[(*p).e[i0]] < (*a).e[(*p).e[i0p1]]) 
+			{
+				buf[i0] = (*p).e[i0];
+				buf[i0p1] = (*p).e[i0p1];
+			}
+			else
+			{
+				buf[i0] = (*p).e[i0p1];
+				buf[i0p1] = (*p).e[i0];
+			}
+			(*p).e[i0] = buf[i0];
+			(*p).e[i0p1] = buf[i0p1];
+		}
+	}
+}
+
+void sort_array_double_permutation(array_double *a, array_int *p)
+{
+	if ((*a).len == (*p).len) {}
+	else
+	{
+		printf("Error (sort_array_double_permutation): permutation must be pre-allocated\n");
+		exit(EXIT_FAILURE);
+	}
+	int *buf = (int *) calloc((*p).len, sizeof(int));
+	merge_sort_array_double_permutation(a, p, buf, 0, (*a).len);
+	free(buf);
 }
 
 void merge_sort_array_int_permutation(array_int *a, array_int *p, int *buf, int i0, int i1)
@@ -3697,3 +3963,30 @@ void sort_array_int_permutation(array_int *a, array_int *p)
 	merge_sort_array_int_permutation(a, p, buf, 0, (*a).len);
 	free(buf);
 }
+
+void load_nbrlist(nbrlist *nbl, char *ifname)
+{
+	FILE *ifile = fopen(ifname, "r");
+	if (ifile != NULL)
+	{
+		while (1)
+		{
+			int n_nbrs;
+			int status = fscanf(ifile, "%d", &n_nbrs);
+			if (status != EOF)
+			{
+				int i = (*nbl).v.len;
+				extend_nbrlist(nbl);
+				for (int ni = 0; ni < n_nbrs; ni++)
+				{
+					int ii;
+					fscanf(ifile, "%d", &ii);
+					if (i > ii) add_edge_nbrlist(nbl, ii, i);
+				}
+			}
+			else break;
+		}
+		fclose(ifile);
+	}
+}
+
