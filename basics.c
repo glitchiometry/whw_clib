@@ -20,13 +20,14 @@ void array_voidstar_init(array_voidstar *a, int size_)
 	{
 		(*a).e = (void **) calloc(size_, sizeof(void *));
 		(*a).mem = size_;
-		(*a).len = 0;
 		for (int i = 0; i < (*a).mem; i++) (*a).e[i] = NULL;
 	}
 	else 
 	{
 		(*a).e = NULL;
+		(*a).mem = 0;
 	}
+	(*a).len = 0;
 }
 
 void add_mem_array_voidstar(array_voidstar *a)
@@ -85,19 +86,37 @@ void print_array_voidstar(array_voidstar a, aarray_char *fmt)
 	printf("\n");
 }
 
+void remove_last_array_voidstar(array_voidstar *a, void (*free_elem)(void *))
+{
+	if ((*a).len > 0)
+	{
+		(*a).len -= 1;
+		if ((*a).e[(*a).len] != NULL) 
+		{
+			if (free_elem != NULL) free_elem((*a).e[(*a).len]);
+			free((*a).e[(*a).len]); // RESUME: check this!
+			(*a).e[(*a).len] = NULL;
+		}
+		if ((*a).len < ((*a).mem >> 2)) contract_array_voidstar(a, free_elem);
+	}
+}
+
 void remove_array_voidstar(array_voidstar *a, int n, void (*free_elem)(void *))
 {
 	if (n < (*a).len)
 	{
 		(*a).len -= 1;
-		if ((*a).e[n] != NULL) 
+		if (free_elem != NULL)
 		{
-			if (free_elem != NULL) free_elem((*a).e[n]);
-			free((*a).e[n]); // RESUME: check this!
+			if ((*a).e[n] != NULL) 
+			{
+				free_elem((*a).e[n]);
+				free((*a).e[n]); // RESUME: check consistency across other programs
+			}
 		}
 		(*a).e[n] = (*a).e[(*a).len];
 		(*a).e[(*a).len] = NULL;
-		if ((*a).len < (*a).mem >> 2) contract_array_voidstar(a, free_elem);
+		if ((*a).len < ((*a).mem >> 2)) contract_array_voidstar(a, free_elem);
 	}
 }
 
@@ -133,7 +152,6 @@ void contract_array_voidstar(array_voidstar *a, void (*free_elem)(void *))
 		(*a).mem = newsize;
 	}
 }
-
 
 void free_array_voidstar(array_voidstar *a, void (*free_elem)(void *))
 {
@@ -286,13 +304,22 @@ void print_array_int(array_int a)
 	printf("\n");
 }
 
+void remove_last_array_int(array_int *a)
+{
+	if ((*a).len > 0)
+	{
+		(*a).len -= 1;
+		if ((*a).len < ((*a).mem >> 2)) contract_array_int(a);
+	}
+}
+
 void remove_array_int(array_int *a, int n)
 {
 	if (n < (*a).len && n > -1)
 	{
 		(*a).len -= 1;
 		(*a).e[n] = (*a).e[(*a).len];
-		if ((*a).len < (*a).mem >> 2) contract_array_int(a);
+		if ((*a).len < ((*a).mem >> 2)) contract_array_int(a);
 	}
 }
 
@@ -2016,6 +2043,17 @@ void add_mem_array_double_until(array_double *a, int i)
 	(*a).e = ne;
 }
 
+void sum_array_double(array_double *a, array_double *b)
+{
+	int min_len = (*a).len <= (*b).len ? (*a).len : (*b).len;
+	for (int i = 0; i < min_len; i++) (*a).e[i] += (*b).e[i];
+}
+
+void scale_array_double(array_double *a, double s)
+{
+	for (int i = 0; i < (*a).len; i++) (*a).e[i] *= s;
+}
+
 void add2array_double(array_double *a, double i)
 {
 	if ((*a).len < (*a).mem) {}
@@ -2036,13 +2074,22 @@ void print_array_double(array_double a)
 	printf("\n");
 }
 
+void remove_last_array_double(array_double *a)
+{
+	if ((*a).len > 0)
+	{
+		(*a).len -= 1;
+		if ((*a).len < ((*a).mem >> 2)) contract_array_double(a);
+	}
+}
+
 void remove_array_double(array_double *a, int n)
 {
 	if (n < (*a).len)
 	{
 		(*a).len -= 1;
 		(*a).e[n] = (*a).e[(*a).len];
-		if ((*a).len < (*a).mem >> 2) contract_array_double(a);
+		if ((*a).len < ((*a).mem >> 2)) contract_array_double(a);
 	}
 }
 
@@ -2277,13 +2324,22 @@ void print_array_char(array_char a)
 	printf("\n");
 }
 
+void remove_last_array_char(array_char *a)
+{
+	if ((*a).len > 0)
+	{
+		(*a).len -= 1;
+		if ((*a).len < ((*a).mem >> 2)) contract_array_char(a);
+	}
+}
+
 void remove_array_char(array_char *a, int n)
 {
 	if (n < (*a).len)
 	{
 		(*a).len -= 1;
 		(*a).e[n] = (*a).e[(*a).len];
-		if ((*a).len < (*a).mem >> 2) contract_array_char(a);
+		if ((*a).len < ((*a).mem >> 2)) contract_array_char(a);
 	}
 }
 
@@ -3050,30 +3106,165 @@ void sort_aarray_char(aarray_char *a, char (*order)(array_char *, array_char *))
 	(*a).e = e;
 }
 
-void merge_array_voidstar(array_voidstar *a, void **e, int *c, int imin, int imax, int jmin, int jmax, char (*order)(void *, void *))
+void merge_array_voidstar(array_voidstar *a, void **e, int *c, int *imin, int imax, int *jmin, int jmax, char (*order)(void *, void *))
 {
-	if (order((*a).e[imin], (*a).e[jmin]) == -1)
+	if ((*imin) < imax && (*jmin) < jmax)
 	{
-		int il = imin;
-		while (order((*a).e[il], (*a).e[jmin]) == -1 && il < imax)
+		if (order((*a).e[*imin], (*a).e[*jmin]) != 1)
 		{
-			e[*c] = (*a).e[il];
-			il += 1;
-			*c += 1;
+			e[(*c)] = (*a).e[(*imin)];
+			(*c) += 1;
+			(*imin) += 1;
 		}
-		merge_array_voidstar(a, e, c, il, imax, jmin, jmax, order);
+		else
+		{
+			e[(*c)] = (*a).e[(*jmin)];
+			(*c) += 1;
+			(*jmin) += 1;
+		}
+		merge_array_voidstar(a, e, c, imin, imax, jmin, jmax, order);
+	}
+	else 
+	{
+		int llim, ulim;
+		if ((*imin) < imax)
+		{
+			llim = (*imin);
+			ulim = imax;
+		}
+		else if ((*jmin) < jmax)
+		{
+			llim = (*jmin);
+			ulim = imax;
+		}
+		else return;
+		for (int i = llim; i < ulim; i++)
+		{
+			e[(*c)] = (*a).e[i];
+			(*c) += 1;
+		}
+	}
+}
+
+void merge_array_voidstar_permutation(array_voidstar *a, int *pi, int *buf, int i0, int i1, int mdpt, char (*order)(void *, void *))
+{
+	if (order((*a).e[pi[mdpt]], (*a).e[pi[mdpt - 1]]) != -1) 
+	{
+		return;
+	}
+	else if (order((*a).e[pi[i0]], (*a).e[pi[i1 - 1]]) != -1)
+	{
+		// case mdpt - i0 > i1 - mdpt:
+		// p[i0 + 1: mdpt] -> p[mdpt : i1] -> p[i0 : mdpt - 1] 
+		// p[i0] -> p[mdpt - 1]
+		// case mdpt - i0 == i1 - mdpt:
+		// p[i0 : mdpt] <-> p[mdpt : i1]
+		int mdptmi0 = mdpt - i0;
+		int i1mmdpt = i1 - mdpt;
+		int *seg_a = &(buf[i0]);
+		int *seg_b = &pi[mdpt];
+		for (int i = 0; i < i1mmdpt; i++)
+		{
+			//int ipi0 = i + i0;
+			seg_a[i] = seg_b[i];
+			//buf[ipi0] = (*p).e[i + mdpt];
+		}
+		seg_a = &(buf[i1 - mdptmi0]);
+		seg_b = &pi[i0];
+		for (int i = 0; i < mdptmi0; i++)
+		{
+			seg_a[i] = seg_b[i];
+		}
+		for (int i = i0; i < i1; i++) pi[i] = buf[i];
+		return;
+	}
+	int term = mdpt;
+	int c0 = i0;
+	int c1 = mdpt;
+	int c = i0;
+	while ((c0 < mdpt) && (c1 < i1))
+	{
+		if (order((*a).e[pi[c0]], (*a).e[pi[c1]]) != 1)
+		{
+			buf[c] = pi[c0];
+			c0 += 1;
+			c += 1;
+		}
+		else
+		{
+			buf[c] = pi[c1];
+			c1 += 1;
+			c += 1;
+		}
+	}
+	if (c0 < mdpt)
+	{
+		while (c < i1)
+		{
+			buf[c] = pi[c0];
+			c += 1;
+			c0 += 1;
+		}
+	}
+	if (c1 < i1)
+	{
+		if (c == c1) {}
+		else
+		{
+			printf("Something weird happened in merge_array_int_permutation! left half of array folded in, but c = %d != c1 = %d!\n", c, c1);
+			exit(EXIT_FAILURE);
+		}
+		while (c < i1)
+		{
+			buf[c] = pi[c1];
+			c += 1;
+			c1 += 1;
+		}
+	}
+	for (int i = i0; i < i1; i++)
+	{
+		pi[i] = buf[i];
+	}
+
+}
+
+void merge_sort_array_voidstar_permutation(array_voidstar *a, int *pi, int *buf, int i0, int i1, char (*order)(void *, void *))
+{
+	int i1mi0 = i1 - i0;
+	if (i1mi0 > 2)
+	{
+		int mdpt = (i0 + i1 + 1) >> 1; 
+		merge_sort_array_voidstar_permutation(a, pi, buf, i0, mdpt, order);
+		merge_sort_array_voidstar_permutation(a, pi, buf, mdpt, i1, order);
+		merge_array_voidstar_permutation(a, pi, buf, i0, i1, mdpt, order);
 	}
 	else
 	{
-		int ir = jmin;
-		while (order((*a).e[ir], (*a).e[imin]) == -1 && ir < jmax)
+		if (i1mi0 < 2) return;
+		else
 		{
-			e[*c] = (*a).e[ir];
-			ir += 1;
-			*c += 1;
+			int i0p1 = i0 + 1;
+			if (order((*a).e[pi[i0]], (*a).e[pi[i0p1]]) != 1) 
+			{
+				buf[i0] = pi[i0];
+				buf[i0p1] = pi[i0p1];
+			}
+			else
+			{
+				buf[i0] = pi[i0p1];
+				buf[i0p1] = pi[i0];
+			}
+			pi[i0] = buf[i0];
+			pi[i0p1] = buf[i0p1];
 		}
-		merge_array_voidstar(a, e, c, imin, imax, ir, jmax, order);
 	}
+
+}
+
+void sort_array_voidstar_permutation(array_voidstar *a, int *pi, char (*order)(void *, void *))
+{
+	int aux_pi[(*a).len];
+	merge_sort_array_voidstar_permutation(a, pi, &(aux_pi[0]), 0, (*a).len, order);
 }
 
 // sort a variable length array along the index interval [i, j)
@@ -3082,30 +3273,46 @@ void merge_sort_array_voidstar(array_voidstar *a, void **e, int i, int j, char (
 	int jmi = j - i;
 	if (jmi > 2)
 	{
-		int mdpt = (i + j) / 2;
+		int mdpt = (i + j) >> 1;
 		merge_sort_array_voidstar(a, e, i, mdpt, order);
 		merge_sort_array_voidstar(a, e, mdpt, j, order);
 		// merge the two ordered lists
 		int c = i;
-		merge_array_voidstar(a, e, &c, i, mdpt, mdpt, j, order);
+		int imin = i;
+		int jmin = mdpt;
+		merge_array_voidstar(a, e, &c, &imin, mdpt, &jmin, j, order);
+		for (int ii = i; ii < j; ii++)
+		{
+			(*a).e[ii] = e[ii];
+		}
 	}
 	else if (jmi == 2)
 	{
 		int ip1 = i + 1;
-		if (order((*a).e[ip1], (*a).e[i]) == 1) {}
+		if (order((*a).e[ip1], (*a).e[i]) != -1) 
+		{
+			e[ip1] = (*a).e[ip1];
+			e[i] = (*a).e[i];
+		}
 		else
 		{
-			void *tmp = (*a).e[ip1];
-			(*a).e[ip1] = (*a).e[i];
-			(*a).e[i] = tmp;
+			e[ip1] = (*a).e[i];
+			e[i] = (*a).e[ip1];
+			(*a).e[ip1] = e[ip1];
+			(*a).e[i] = e[i];
 		}
 	}
 }
 
 void sort_array_voidstar(array_voidstar *a, char (*order)(void *, void *))
 {
-	void **e = (void **) calloc((*a).mem, sizeof(void *));
+	void **e = (void **) calloc((*a).len, sizeof(void *));
+	for (int i = 0; i < (*a).len; i++) e[i] = (*a).e[i];
 	merge_sort_array_voidstar(a, e, 0, (*a).len, order);
+	for (int i = 0; i < (*a).len; i++)
+	{
+		(*a).e[i] = e[i];
+	}
 	free((*a).e);
 	(*a).e = e;
 }
@@ -3292,7 +3499,7 @@ char has_substring(char *str, char *sub)
 	return 0;
 }
 
-void array_double_diff(double *e1, double *e2, double *e3, int len)
+void array_double_diff(const double *e1, const double *e2, double *e3, int len)
 {
 	for (int i = 0; i < len; i++)
 	{
@@ -3300,7 +3507,7 @@ void array_double_diff(double *e1, double *e2, double *e3, int len)
 	}
 }
 
-double array_double_dot(double *e1, double *e2, int len)
+double array_double_dot(const double *e1, const double *e2, int len)
 {
 	double dp = 0;
 	for (int i = 0; i < len; i++) dp += e1[i] * e2[i];
@@ -3934,7 +4141,7 @@ void merge_sort_array_int_permutation(array_int *a, array_int *p, int *buf, int 
 		else
 		{
 			int i0p1 = i0 + 1;
-			if ((*a).e[(*p).e[i0]] < (*a).e[(*p).e[i0p1]]) 
+			if ((*a).e[(*p).e[i0]] <= (*a).e[(*p).e[i0p1]]) 
 			{
 				buf[i0] = (*p).e[i0];
 				buf[i0p1] = (*p).e[i0p1];
@@ -3988,5 +4195,449 @@ void load_nbrlist(nbrlist *nbl, char *ifname)
 		}
 		fclose(ifile);
 	}
+}
+
+void hash_table_int_init(hash_table_int *ht, int min_data_size, Uint64 min_elem_size)
+{
+	(*ht).largest_bin = 0;
+	(*ht).lg_data_len = 0;
+	int data_len = 1;
+	while (data_len < min_data_size)
+	{
+		data_len <<= 1;
+		(*ht).lg_data_len += 1;
+	}
+	array_voidstar_init(&((*ht).data), data_len);
+	(*ht).data.len = data_len;
+	if ((*ht).data.len != (*ht).data.mem) 
+	{
+		printf("Error (hash_table_int_init): something weird happened! c.f. %d vs. %d a;sldjf;lsjkdf;jaw\n", (*ht).data.len, (*ht).data.mem);
+		exit(EXIT_FAILURE);
+	}
+	(*ht).size_mask = (*ht).data.len - 1;
+	int lg_elem_size = (*ht).lg_data_len + 2;
+	lg_elem_size = lg_elem_size < 65 ? lg_elem_size : 64;
+	Uint64 elem_size = 1 << lg_elem_size;
+	while (elem_size < min_elem_size)
+	{
+		elem_size <<= 1;
+		lg_elem_size += 1;
+	}
+	(*ht).elem_mask = elem_size - 1;
+	(*ht).gen_a = rand() & (*ht).elem_mask;
+	(*ht).gen_b = rand() & ((lg_elem_size << 1) - 1);
+	array_int_init(&((*ht).addr_0), 0);
+	array_int_init(&((*ht).addr_1), 0);
+	array_int_init(&((*ht).elem), 0);
+	(*ht).n_bits_ignored = lg_elem_size - (*ht).lg_data_len;
+}
+
+// RESUME
+void free_hash_table_int(hash_table_int *ht)
+{
+	free_array_int(&((*ht).addr_0));
+	free_array_int(&((*ht).addr_1));
+	free_array_int(&((*ht).elem));
+	for (int i = 0; i < (*ht).data.len; i++)
+	{
+		if ((*ht).data.e[i] != NULL)
+		{
+			free_array_int((array_int *) (*ht).data.e[i]);
+			free((*ht).data.e[i]);
+		}
+	}
+	free_array_voidstar(&((*ht).data), NULL);
+}
+
+void resize_hash_table_int(hash_table_int *ht, int new_min_size)
+{
+	hash_table_int htp;
+	int nmsp1 = new_min_size + 1;
+	if ((*ht).elem_mask <= nmsp1)
+	{
+		(*ht).elem_mask += 1;
+		while ((*ht).elem_mask <= nmsp1)
+		{
+			(*ht).elem_mask <<= 1;
+		}
+		(*ht).elem_mask -= 1;
+	}
+	hash_table_int_init(&htp, new_min_size, (*ht).elem_mask);
+	for (int i = 0; i < (*ht).elem.len; i++)
+	{
+		add2hash_table_int(&htp, (*ht).elem.e[i]);
+	}
+	free_hash_table_int(ht);
+	(*ht) = htp;
+}
+
+void transcribe_hash_table_int(hash_table_int *src, hash_table_int *dest)
+{
+	array_voidstar_init(&((*dest).data), (*src).data.len);
+	(*dest).data.len = (*src).data.len;
+	for (int i = 0; i < (*src).data.len; i++)
+	{
+		if ((*src).data.e[i] != NULL)
+		{
+			array_int *sei = (array_int *) (*src).data.e[i];
+			array_int *dei = (array_int *) calloc(1, sizeof(array_int));
+			transcribe_array_int(sei, dei);
+			(*dest).data.e[i] = dei;
+		}
+	}
+	transcribe_array_int(&((*src).addr_0), &((*dest).addr_0));
+	transcribe_array_int(&((*src).addr_1), &((*dest).addr_1));
+	transcribe_array_int(&((*src).elem), &((*dest).elem));
+	(*dest).n_bits_ignored = (*src).n_bits_ignored;
+	(*dest).elem_mask = (*src).elem_mask;
+	(*dest).lg_elem_size = (*src).lg_elem_size;
+	(*dest).size_mask = (*src).size_mask;
+	(*dest).gen_a = (*src).gen_a;
+	(*dest).gen_b = (*src).gen_b;
+	(*dest).largest_bin = (*src).largest_bin;
+}
+
+int hash_table_int_map(hash_table_int *ht, int n)
+{
+	return (((*ht).gen_a * n + (*ht).gen_b) & (*ht).elem_mask) >> (*ht).n_bits_ignored;
+}
+
+char query_hash_table_int(hash_table_int *ht, int n, int *addr_0, int *addr_1)
+{
+	(*addr_0) = hash_table_int_map(ht, n);
+	(*addr_1) = -1;
+	if ((*ht).data.e[(*addr_0)] != NULL) {}
+	else	
+	{
+		return 0;
+	}
+	// Check if 'n' already exists in the hash table
+	array_int *ehn = (array_int *) (*ht).data.e[(*addr_0)];
+	char present = 0;
+	for (int i = 0; i < (*ehn).len; i++)
+	{
+		if ((*ht).elem.e[(*ehn).e[i]] != n) {}
+		else
+		{
+			(*addr_1) = i;
+			present = 1;
+			break;
+		}
+	}
+	return present;
+}
+
+void add2hash_table_int(hash_table_int *ht, int n)
+{
+	int hash_n = hash_table_int_map(ht, n);
+	if ((*ht).data.e[hash_n] != NULL) {}
+	else
+	{
+		(*ht).data.e[hash_n] = (array_int *) calloc(1, sizeof(array_int));
+		array_int_init((array_int *) (*ht).data.e[hash_n], 1);
+	}
+	// Check if 'n' already exists in the hash table
+	array_int *ehn = (array_int *) (*ht).data.e[hash_n];
+	char present = 0;
+	for (int i = 0; i < (*ehn).len; i++)
+	{
+		if ((*ht).elem.e[(*ehn).e[i]] != n) {}
+		else
+		{
+			present = 1;
+			break;
+		}
+	}
+	if (present) {}
+	else
+	{
+		add2array_int(&((*ht).addr_0), hash_n);
+		add2array_int(&((*ht).addr_1), (*ehn).len);
+		add2array_int(ehn, (*ht).elem.len);
+		(*ht).largest_bin = (*ehn).len < (*ht).largest_bin ? (*ht).largest_bin : (*ehn).len;
+		add2array_int(&((*ht).elem), n);
+	}
+}
+
+void remove_hash_table_int(hash_table_int *ht, int n)
+{
+	int addr_0, addr_1;
+	char present = query_hash_table_int(ht, n, &addr_0, &addr_1);
+	if (present)
+	{
+		array_int *ehn = (array_int *) (*ht).data.e[addr_0];
+		int index = (*ehn).e[addr_1];
+		remove_array_int(ehn, addr_1);
+		if ((*ehn).len > addr_1)
+		{
+			int index_p = (*ehn).e[addr_1];
+			int n_p = (*ht).elem.e[index_p];
+			(*ht).addr_1.e[index_p] = addr_1;
+		}
+		else if ((*ehn).len > 0) {}
+		else
+		{
+			free_array_int(ehn);
+			free((*ht).data.e[addr_0]);
+			(*ht).data.e[addr_0] = NULL;
+		}
+		remove_array_int(&((*ht).elem), index);
+		remove_array_int(&((*ht).addr_0), index);
+		remove_array_int(&((*ht).addr_1), index);
+		if ((*ht).elem.len > index)
+		{
+			int n_p = (*ht).elem.e[index];
+			int hash_n_p = (*ht).addr_0.e[index];
+			array_int *ehn_p = (array_int *) (*ht).data.e[hash_n_p];
+			(*ehn_p).e[(*ht).addr_1.e[index]] = index;
+		}
+	}
+}
+
+void transcribe_hash_table_int_str(hash_table_int_str *src, hash_table_int_str *dest)
+{
+	(*dest).data_src = (*src).data_src;
+	(*dest).largest_bin = (*src).largest_bin;
+	(*dest).lg_data_len = (*src).lg_data_len;
+	array_voidstar_init(&((*dest).data), (*src).data.len);
+	(*dest).data.len = (*src).data.len;
+	for (int i = 0; i < (*src).data.len; i++)
+	{
+		if ((*src).data.e[i] != NULL)
+		{
+			(*dest).data.e[i] = (array_int *) calloc(1, sizeof(array_int));
+			transcribe_array_int((array_int *) (*src).data.e[i], (array_int *) (*dest).data.e[i]);
+		}
+	}
+	(*dest).n_bits_ignored = (*src).n_bits_ignored;
+	(*dest).elem_mask = (*src).elem_mask;
+	(*dest).size_mask = (*src).size_mask;
+	(*dest).gen_a = (*src).gen_a;
+	(*dest).gen_b = (*src).gen_b;
+	(*dest).str_gen_a = (*src).str_gen_a;
+	(*dest).str_gen_b = (*src).str_gen_b;
+	transcribe_array_int(&((*src).addr_0), &((*dest).addr_0));
+	transcribe_array_int(&((*src).addr_1), &((*dest).addr_1));
+	transcribe_array_int(&((*src).lens), &((*dest).lens));
+	if ((*dest).data_src == BASICS_H_OTHER) transcribe_array_voidstar(&((*src).elem), &((*dest).elem));
+	else
+	{
+		array_voidstar_init(&((*dest).elem), (*src).elem.len);
+		(*dest).elem.len = (*src).elem.len;
+		for (int i = 0; i < (*src).elem.len; i++)
+		{
+			int *ei = (int *) (*src).elem.e[i];
+			int *ei_ = (int *) calloc((*src).lens.e[i], sizeof(int));
+			for (int ii = 0; ii < (*src).lens.e[i]; ii++)
+			{
+				ei_[ii] = ei[ii];
+			}
+			(*dest).elem.e[i] = (void *) ei_;
+		}
+	}
+}
+
+int int_str_ht_size(hash_table_int_str *ht)
+{
+	return (*ht).data.len;
+}
+
+void hash_table_int_str_init(hash_table_int_str *ht, int min_ht_size, Uint64 max_int_size, char src_mode)
+{
+	(*ht).data_src = src_mode;
+	(*ht).largest_bin = 0;
+	(*ht).lg_data_len = 0;
+	int data_len = 1;
+	while (data_len < min_ht_size)
+	{
+		data_len <<= 1;
+		(*ht).lg_data_len += 1;
+	}
+	array_voidstar_init(&((*ht).data), data_len);
+	(*ht).data.len = data_len;
+	(*ht).n_bits_ignored = (*ht).lg_data_len + 2;
+	(*ht).elem_mask = 1 << (*ht).n_bits_ignored;
+	while ((*ht).elem_mask < max_int_size)
+	{
+		(*ht).n_bits_ignored += 1;
+		(*ht).elem_mask <<= 1;
+	}
+	(*ht).n_bits_ignored -= (*ht).lg_data_len;
+	(*ht).elem_mask -= 1;
+	(*ht).size_mask = data_len - 1;
+	(*ht).gen_a = rand() & (*ht).elem_mask;
+	(*ht).gen_b = rand() & (((*ht).elem_mask << 1) + 1);
+	(*ht).str_gen_a = rand() & (*ht).elem_mask;
+	(*ht).str_gen_b = rand() & (((*ht).elem_mask << 1) + 1);
+	array_int_init(&((*ht).addr_0), 0);
+	array_int_init(&((*ht).addr_1), 0);
+	array_int_init(&((*ht).lens), 0);
+	array_voidstar_init(&((*ht).elem), 0);
+}
+
+void free_hash_table_int_str(hash_table_int_str *ht)
+{
+	if ((*ht).data_src == BASICS_H_SELF)
+	{
+		for (int i = 0; i < (*ht).elem.len; i++)
+		{
+			free((int *) (*ht).elem.e[i]);
+		}
+	}
+	free_array_voidstar(&((*ht).elem), NULL);
+	free_array_int(&((*ht).addr_0));
+	free_array_int(&((*ht).addr_1));
+	free_array_int(&((*ht).lens));
+	for (int i = 0; i < (*ht).data.len; i++)
+	{
+		if ((*ht).data.e[i] != NULL)
+		{
+			array_int *ei = (array_int *) (*ht).data.e[i];
+			free_array_int(ei);
+			free(ei);
+		}
+	}
+	free_array_voidstar(&((*ht).data), NULL);
+}
+
+// NOTE: consider storing actual elements in a separate, aggregated/global hash table
+// and storing a simple reference in local instances. The advantage of this approach 
+// is that it would save memory with a relatively small cost in performance. Also,
+// performance losses could be offset to some extent (especially with larger polynomials)
+// by eliminating the need to allocate largish arrays.
+void resize_hash_table_int_str(hash_table_int_str *ht, int new_min_size)
+{
+	hash_table_int_str htp;
+	hash_table_int_str_init(&htp, new_min_size, (*ht).elem_mask, (*ht).data_src);
+	for (int i = 0; i < (*ht).elem.len; i++)
+	{
+		int *ei = (int *) (*ht).elem.e[i];
+		int len_ei = (*ht).lens.e[i];
+		add2hash_table_int_str(&htp, ei, len_ei);
+	}
+	free_hash_table_int_str(ht);
+	(*ht) = htp;
+}
+
+void add2hash_table_int_str(hash_table_int_str *ht, int *n, int len)
+{
+	int hash_n = hash_table_int_str_map(ht, n, len);
+	if ((*ht).data.e[hash_n] != NULL) {}
+	else
+	{
+		(*ht).data.e[hash_n] = (array_int *) calloc(1, sizeof(array_int));
+		array_int_init((array_int *) (*ht).data.e[hash_n], 1);
+	}
+	array_int *ehn = (array_int *) (*ht).data.e[hash_n];
+	char present = 0;
+	for (int i = 0; i < (*ehn).len; i++)
+	{
+		int index = (*ehn).e[i];
+		int *si = (int *) (*ht).elem.e[index];
+		int si_len = (*ht).lens.e[index];
+		if (si_len != len) {}
+		else
+		{
+			if (arr_int_comp(si, n, len) != 0) {}
+			else
+			{
+				present = 1;
+				break;
+			}
+		}
+	}
+	if (present) {}
+	else
+	{
+		add2array_int(&((*ht).addr_0), hash_n);
+		add2array_int(&((*ht).addr_1), (*ehn).len);
+		add2array_int(ehn, (*ht).elem.len);
+		(*ht).largest_bin = (*ht).largest_bin > (*ehn).len ? (*ht).largest_bin : (*ehn).len;
+		if ((*ht).data_src == BASICS_H_SELF)
+		{
+			int *n_ = (int *) calloc(len, sizeof(int));
+			for (int i = 0; i < len; i++) n_[i] = n[i];
+			add2array_voidstar(&((*ht).elem), n_);
+		}
+		else add2array_voidstar(&((*ht).elem), n);
+		add2array_int(&((*ht).lens), len);
+	}
+}
+
+void remove_hash_table_int_str(hash_table_int_str *ht, int *n, int len)
+{
+	int addr_0, addr_1;
+	int present = query_hash_table_int_str(ht, n, len, &addr_0, &addr_1);
+	if (present)
+	{
+		array_int *ehn = (array_int *) (*ht).data.e[addr_0];
+		char check_largest_bin = (*ehn).len == (*ht).largest_bin;
+		int index = (*ehn).e[addr_1];
+		remove_array_int(ehn, addr_1);
+		if ((*ehn).len > addr_1)
+		{
+			int index_p = (*ehn).e[addr_1];
+			(*ht).addr_1.e[index_p] = addr_1;
+		}
+		else if ((*ehn).len > 0) {}
+		else
+		{
+			free_array_int(ehn);
+			free((*ht).data.e[addr_0]);
+			(*ht).data.e[addr_0] = NULL;
+		}
+		remove_array_int(&((*ht).addr_1), index);
+		remove_array_int(&((*ht).addr_0), index);
+		remove_array_int(&((*ht).lens), index);
+		if ((*ht).data_src == BASICS_H_SELF)
+		{
+			free((int *) (*ht).elem.e[index]);
+		}
+		remove_array_voidstar(&((*ht).elem), index, NULL);
+		if ((*ht).addr_0.len > index)
+		{
+			int hash_n_p = (*ht).addr_0.e[index];
+			int addr_1_p = (*ht).addr_1.e[index];
+			array_int *ehn_p = (array_int *) (*ht).data.e[hash_n_p];
+			(*ehn_p).e[addr_1_p] = index;
+		}
+	}
+}
+
+int arr_int_comp(int *a, int *b, int len)
+{
+	return len > 0 ? (a[0] > b[0] ? 1 : (b[0] > a[0] ? -1 : arr_int_comp(&a[1], &b[1], len - 1))) : 0;
+}
+
+char query_hash_table_int_str(hash_table_int_str *ht, int *n, int len, int *addr0, int *addr1)
+{
+	(*addr0) = hash_table_int_str_map(ht, n, len);
+	if ((*ht).data.e[(*addr0)] != NULL)
+	{
+		array_int *ehn = (array_int *) (*ht).data.e[(*addr0)];
+		for (int i = 0; i < (*ehn).len; i++)
+		{
+			int index = (*ehn).e[i];
+			if ((*ht).lens.e[index] == len)
+			{
+				if (arr_int_comp(n, (int *) (*ht).elem.e[index], len) == 0) 
+				{
+					(*addr1) = i;
+					return 1;
+				}
+			}
+		}
+	}
+	return 0;
+}
+
+int hash_table_int_str_map(hash_table_int_str *ht, int *n, int len)
+{
+	int a = (*ht).str_gen_b;
+	for (int i = 0; i < len; i++)
+	{
+		a = ((*ht).str_gen_a * a + n[i]) & (*ht).elem_mask;
+	}
+	return ((a * (*ht).gen_a + (*ht).gen_b) & (*ht).elem_mask) >> (*ht).n_bits_ignored;
 }
 

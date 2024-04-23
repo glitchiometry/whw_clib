@@ -15,6 +15,10 @@ Sources:
 #define SORTED_INCREASING 1
 #define SORTED_DECREASING 2
 #define SORTED_CONST 3
+#define BASICS_H_SELF 0
+#define BASICS_H_OTHER 1
+#define Uint64 long unsigned int
+#define Uint16 short unsigned int
 
 double ** bb_matrix_alloc(int M, int N);
 void bb_matrix_free(double **A, int M);
@@ -174,18 +178,58 @@ typedef struct generic_iter
 	char (*advance)(struct generic_iter *, void *);
 } generic_iterator;
 
+typedef struct 
+{
+	array_voidstar data;
+	array_int addr_0;
+	array_int addr_1;
+	array_int elem;
+	Uint16 n_bits_ignored;
+	Uint64 elem_mask;
+	Uint16 lg_data_len;
+	int lg_elem_size;
+	Uint64 size_mask;
+	Uint64 gen_a;
+	Uint64 gen_b;
+	int largest_bin;
+} hash_table_int;
+
+typedef struct
+{
+	array_voidstar data;
+	array_int addr_0;
+	array_int addr_1;
+	array_voidstar elem;
+	array_int lens;
+	char n_bits_ignored;
+	Uint64 elem_mask;
+	char lg_data_len;
+	Uint64 size_mask;
+	Uint64 gen_a;
+	Uint64 gen_b;
+	Uint64 str_gen_a;
+	Uint64 str_gen_b;
+	int largest_bin;
+	char data_src;
+} hash_table_int_str;
+
 // methods for variable length arrays
 void array_voidstar_init(array_voidstar *a, int size_);
 void add_mem_array_voidstar(array_voidstar *a);
 void add_mem_array_voidstar_until(array_voidstar *a, int i);
 void add2array_voidstar(array_voidstar *a, void *i);
 void print_array_voidstar(array_voidstar a, aarray_char *format);
+void remove_last_array_voidstar(array_voidstar *a, void (*free_elem)(void *));
 void remove_array_voidstar(array_voidstar *a, int n, void (*free_elem)(void *));
 void contract_array_voidstar(array_voidstar *a, void (*free_elem)(void *));
 void free_array_voidstar(array_voidstar *a, void (*free_elem)(void *));
 void reset_array_voidstar(array_voidstar *a);
 void transcribe_array_voidstar(array_voidstar *a, array_voidstar *b);
-void merge_array_voidstar(array_voidstar *a, void **e, int *c, int imin, int imax, int jmin, int jmax, char (*order)(void *, void *));
+
+void merge_array_voidstar_permutation(array_voidstar *a, int *pi, int *buf, int i0, int i1, int mdpt, char (*order)(void *, void *));
+void merge_sort_array_voidstar_permutation(array_voidstar *a, int *pi, int *buf, int i0, int i1, char (*order)(void *, void *));
+void sort_array_voidstar_permutation(array_voidstar *a, int *pi, char (*order)(void *, void *));
+void merge_array_voidstar(array_voidstar *a, void **e, int *c, int *imin, int imax, int *jmin, int jmax, char (*order)(void *, void *));
 void merge_sort_array_voidstar(array_voidstar *a, void **e, int i, int j, char (*order)(void *, void *));
 void sort_array_voidstar(array_voidstar *a, char (*order)(void *, void *));
 
@@ -198,6 +242,7 @@ void add_mem_array_int_until(array_int *a, int i);
 void add2array_int(array_int *a, int i);
 void print_array_int(array_int a);
 void remove_array_int(array_int *a, int n);
+void remove_last_array_int(array_int *a);
 void contract_array_int(array_int *a);
 void free_array_int(array_int *a);
 void reset_array_int(array_int *a);
@@ -214,9 +259,12 @@ void array_double_init(array_double *a, int size_);
 void transcribe_array_double(array_double *src, array_double *dest);
 void add_mem_array_double(array_double *a);
 void add_mem_array_double_until(array_double *a, int i);
+void sum_array_double(array_double *a, array_double *b);
+void scale_array_double(array_double *a, double s);
 void add2array_double(array_double *a, double i);
 void print_array_double(array_double a);
 void remove_array_double(array_double *a, int n);
+void remove_last_array_double(array_double *a);
 void contract_array_double(array_double *a);
 void free_array_double(array_double *a);
 void reset_array_double(array_double *a);
@@ -235,6 +283,7 @@ void add2array_char(array_char *a, char i);
 void append_array_char(array_char *a, char *buf, int len);
 void print_array_char(array_char a);
 void remove_array_char(array_char *a, int n);
+void remove_last_array_char(array_char *a);
 void contract_array_char(array_char *a);
 void free_array_char(array_char *a);
 void reset_array_char(array_char *a);
@@ -441,8 +490,8 @@ char order_induced_voidstar_lexical_array_double(void *a, void *b);
 char order_induced_voidstar_lexical_array_int(void *a, void *b);
 char order_induced_voidstar_lexical_array_char(void *a, void *b);
 
-void array_double_diff(double *e1, double *e2, double *e3, int len);
-double array_double_dot(double *e1, double *e2, int len);
+void array_double_diff(const double *e1, const double *e2, double *e3, int len);
+double array_double_dot(const double *e1, const double *e2, int len);
 double array_double_norm(double *ad, int len);
 
 char aarray_int_contains_set(aarray_int *aa, int *set, int len);
@@ -470,5 +519,28 @@ double array_double_min(double *a, int len);
 double array_double_max(double *a, int len);
 char array_char_min(char *a, int len);
 char array_char_max(char *a, int len);
+
+// methods for hash_tables
+//
+int arr_int_comp(int *a, int *b, int len);
+
+void hash_table_int_init(hash_table_int *ht, int min_data_size, Uint64 max_elem_size);
+void free_hash_table_int(hash_table_int *ht);
+void resize_hash_table_int(hash_table_int *ht, int new_min_size);
+void add2hash_table_int(hash_table_int *ht, int n);
+char query_hash_table_int(hash_table_int *ht, int n, int *addr0, int *addr1);
+void remove_hash_table_int(hash_table_int *ht, int n);
+int hash_table_int_map(hash_table_int *ht, int n);
+void transcribe_hash_table_int(hash_table_int *src, hash_table_int *dest);
+
+int int_str_ht_size(hash_table_int_str *ht);
+void hash_table_int_str_init(hash_table_int_str *ht, int min_ht_size, Uint64 max_int_size, char data_src_mode);
+void free_hash_table_int_str(hash_table_int_str *ht);
+void resize_hash_table_int_str(hash_table_int_str *ht, int new_min_size);
+void add2hash_table_int_str(hash_table_int_str *ht, int *n, int len);
+void remove_hash_table_int_str(hash_table_int_str *ht, int *n, int len);
+char query_hash_table_int_str(hash_table_int_str *ht, int *n, int len, int *addr0, int *addr1);
+int hash_table_int_str_map(hash_table_int_str *ht, int *n, int len);
+void transcribe_hash_table_int_str(hash_table_int_str *src, hash_table_int_str *dest);
 
 #endif
