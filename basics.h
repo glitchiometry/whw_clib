@@ -17,8 +17,12 @@ Sources:
 #define SORTED_CONST 3
 #define BASICS_H_SELF 0
 #define BASICS_H_OTHER 1
-#define Uint64 long unsigned int
-#define Uint16 short unsigned int
+#ifndef basics_Uint64
+#define basics_Uint64 long unsigned int
+#endif
+#ifndef basics_Uint16
+#define basics_Uint16 short unsigned int
+#endif
 
 double ** bb_matrix_alloc(int M, int N);
 void bb_matrix_free(double **A, int M);
@@ -184,13 +188,13 @@ typedef struct
 	array_int addr_0;
 	array_int addr_1;
 	array_int elem;
-	Uint16 n_bits_ignored;
-	Uint64 elem_mask;
-	Uint16 lg_data_len;
+	basics_Uint16 n_bits_ignored;
+	basics_Uint64 elem_mask;
+	basics_Uint16 lg_data_len;
 	int lg_elem_size;
-	Uint64 size_mask;
-	Uint64 gen_a;
-	Uint64 gen_b;
+	basics_Uint64 size_mask;
+	basics_Uint64 gen_a;
+	basics_Uint64 gen_b;
 	int largest_bin;
 } hash_table_int;
 
@@ -202,13 +206,13 @@ typedef struct
 	array_voidstar elem;
 	array_int lens;
 	char n_bits_ignored;
-	Uint64 elem_mask;
+	basics_Uint64 elem_mask;
 	char lg_data_len;
-	Uint64 size_mask;
-	Uint64 gen_a;
-	Uint64 gen_b;
-	Uint64 str_gen_a;
-	Uint64 str_gen_b;
+	basics_Uint64 size_mask;
+	basics_Uint64 gen_a;
+	basics_Uint64 gen_b;
+	basics_Uint64 str_gen_a;
+	basics_Uint64 str_gen_b;
 	int largest_bin;
 	char data_src;
 } hash_table_int_str;
@@ -524,7 +528,7 @@ char array_char_max(char *a, int len);
 //
 int arr_int_comp(int *a, int *b, int len);
 
-void hash_table_int_init(hash_table_int *ht, int min_data_size, Uint64 max_elem_size);
+void hash_table_int_init(hash_table_int *ht, int min_data_size, basics_Uint64 max_elem_size);
 void free_hash_table_int(hash_table_int *ht);
 void resize_hash_table_int(hash_table_int *ht, int new_min_size);
 void add2hash_table_int(hash_table_int *ht, int n);
@@ -534,7 +538,7 @@ int hash_table_int_map(hash_table_int *ht, int n);
 void transcribe_hash_table_int(hash_table_int *src, hash_table_int *dest);
 
 int int_str_ht_size(hash_table_int_str *ht);
-void hash_table_int_str_init(hash_table_int_str *ht, int min_ht_size, Uint64 max_int_size, char data_src_mode);
+void hash_table_int_str_init(hash_table_int_str *ht, int min_ht_size, basics_Uint64 max_int_size, char data_src_mode);
 void free_hash_table_int_str(hash_table_int_str *ht);
 void resize_hash_table_int_str(hash_table_int_str *ht, int new_min_size);
 void add2hash_table_int_str(hash_table_int_str *ht, int *n, int len);
