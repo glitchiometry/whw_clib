@@ -153,6 +153,8 @@ void contract_array_voidstar(array_voidstar *a, void (*free_elem)(void *))
 	}
 }
 
+void free_elem_triv(void *) {}
+
 void free_array_voidstar(array_voidstar *a, void (*free_elem)(void *))
 {
 	if ((*a).mem > 0)
@@ -340,6 +342,12 @@ void contract_array_int(array_int *a)
 	}
 }
 
+void fprintf_array_int(array_int *a, FILE *ofile)
+{
+	ofile = ofile != NULL ? ofile : stdout;
+	for (int i = 0; i < (*a).len; i++) fprintf(ofile, "%d ", (*a).e[i]);
+	fprintf(ofile, "\n");
+}
 
 void free_array_int(array_int *a)
 {
@@ -612,6 +620,9 @@ void add2aarray_int_elem(aarray_int *aa, int ai, int i)
 void reset_aarray_int_elem(int i, aarray_int *aa)
 {
 	reset_array_int(&((*aa).e[i]));
+	free((*aa).e[i].e);
+	(*aa).e[i].mem = 0;
+	(*aa).e[i].e = NULL;
 }
 
 // RESUME: test this
@@ -635,12 +646,52 @@ void remove_aarray_int(aarray_int *aa, int i)
 	}
 }
 
+void fprintf_aarray_int(aarray_int *aa, FILE *ofile)
+{
+  if (ofile != NULL)
+    {
+      for (int i = 0; i < (*aa).len; i++)
+	{
+	  fprintf(ofile, "%d ", (*aa).e[i].len);
+	  for (int ii = 0; ii < (*aa).e[i].len; ii++) fprintf(ofile, "%d ", (*aa).e[i].e[ii]);
+	  fprintf(ofile, "\n");
+	}
+    }
+}
+
+// Assumes aarray_int has been initialized
+void load_aarray_int(aarray_int *aa, char *fname)
+{
+  FILE *ifile = fopen(fname, "r");
+  if (ifile != NULL)
+    {
+      while (1)
+	{
+	  int n_elem;
+	  int status = fscanf(ifile, "%d", &n_elem);
+	  if (status != EOF)
+	    {
+	      int i = (*aa).len;
+	      extend_aarray_int(aa);
+	      for (int ni = 0; ni < n_elem; ni++)
+		{
+		  int ii;
+		  fscanf(ifile, "%d", &ii);
+		  add2array_int(&((*aa).e[i]), ii);
+		}
+	    }
+	  else break;
+	}
+      fclose(ifile);
+    }
+}
+
 void free_aarray_int(aarray_int *aa)
 {
 	if ((*aa).mem > 0)
 	{
 		int i = 0;
-		while (i < (*aa).mem && (*aa).e[i].mem > 0)
+		while (i < (*aa).len)
 		{
 			free_array_int(&((*aa).e[i]));
 			// free(&((*aa).e[i])); // RESUME: Check this! 000
@@ -648,6 +699,20 @@ void free_aarray_int(aarray_int *aa)
 		}
 		free((*aa).e);
 	}
+}
+
+int aarray_int_max(aarray_int *a)
+{
+	int max = -RAND_MAX;
+	for (int i = 0; i < (*a).len; i++)
+	{
+		for (int ni = 0; ni < (*a).e[i].len; ni++)
+		{
+			if ((*a).e[i].e[ni] < max) {}
+			else max = (*a).e[i].e[ni];
+		}
+	}
+	return max;
 }
 
 void print_aarray_int(aarray_int aa)
@@ -832,6 +897,46 @@ void remove_aarray_double(aarray_double *aa, int i)
 		printf("Error: attempting to remove non-existent aarray_double element %d of %d\n", i, (*aa).len);
 		exit(EXIT_FAILURE);
 	}
+}
+
+
+void fprintf_aarray_double(aarray_double *aa, FILE *ofile)
+{
+    if (ofile != NULL)
+    {
+      for (int i = 0; i < (*aa).len; i++)
+	{
+	  fprintf(ofile, "%d ", (*aa).e[i].len);
+	  for (int ii = 0; ii < (*aa).e[i].len; ii++) fprintf(ofile, "%g ", (*aa).e[i].e[ii]);
+	  fprintf(ofile, "\n");
+	}
+    }
+}
+
+void load_aarray_double(aarray_double *aa, char *fname)
+{
+  FILE *ifile = fopen(fname, "r");
+  if (ifile != NULL)
+    {
+      while (1)
+	{
+	  int n_elem;
+	  int status = fscanf(ifile, "%d", &n_elem);
+	  if (status != EOF)
+	    {
+	      int i = (*aa).len;
+	      extend_aarray_double(aa);
+	      for (int ni = 0; ni < n_elem; ni++)
+		{
+		  double ii;
+		  fscanf(ifile, "%lg", &ii);
+		  add2array_double(&((*aa).e[i]), (double) ii);
+		}
+	    }
+	  else break;
+	}
+      fclose(ifile);
+    }
 }
 
 void free_aarray_double(aarray_double *aa)
@@ -1485,12 +1590,6 @@ void extend_nbrlist(nbrlist *nbl)
 	prep_nbrlist(nbl);
 	(*nbl).v.len += 1;
 	(*nbl).i_of.len += 1;
-	/*array_int nbrs;
-	array_int i_of_;
-	array_int_init(&nbrs, 1);
-	array_int_init(&i_of_, 1);
-	add2aarray_int(&((*nbl).v), nbrs);
-	add2aarray_int(&((*nbl).i_of), i_of_);*/
 }
 
 void set_len_nbrlist(nbrlist *nbl, int len)
@@ -1733,6 +1832,347 @@ int N_vertices_nbrlist(nbrlist *nbl)
 int N_nbors_nbrlist(nbrlist *nbl, int v_index)
 {
 	return (*nbl).v.e[v_index].len;
+}
+
+// Methods for edge_wtd_graph
+
+void edge_wtd_graph_init(edge_wtd_graph *g, int size)
+{
+	nbrlist_init_precise(&((*g).top), size);
+	aarray_int_init(&((*g).edge_wts), size);
+}
+
+void free_edge_wtd_graph(edge_wtd_graph *g)
+{
+	free_aarray_int(&((*g).edge_wts));
+	free_nbrlist(&((*g).top));
+}
+
+void transcribe_edge_wtd_graph(edge_wtd_graph *src, edge_wtd_graph *dest)
+{
+	transcribe_nbrlist(&((*src).top), &((*dest).top));
+	transcribe_aarray_int(&((*src).edge_wts), &((*dest).edge_wts));
+}
+
+void fprintf_edge_wtd_graph(edge_wtd_graph *g, char *prefix)
+{
+	char buf[256];
+	sprintf(buf, "%s.top", prefix);
+	FILE *ofile = fopen(buf, "w");
+	if (ofile != NULL)
+	{
+		fprintf_nbrlist(&((*g).top), ofile);
+		fclose(ofile);
+	}
+	sprintf(buf, "%s.wts", prefix);
+	ofile = fopen(buf, "w");
+	if (ofile != NULL)
+	{
+		fprintf_aarray_int(&((*g).edge_wts), ofile);
+		fclose(ofile);
+	}
+}
+
+int add_edge_edge_wtd_graph_safe(edge_wtd_graph *g, int i, int j, int w)
+{
+	for (int ni = 0; ni < (*g).top.v.e[i].len; ni++)
+	{
+		int ii = (*g).top.v.e[i].e[ni];
+		if (ii == j)
+		{
+			return ni;
+		}
+	}
+	add_edge_edge_wtd_graph(g, i, j, w);
+	return -1;
+}
+
+void add_edge_edge_wtd_graph(edge_wtd_graph *g, int i, int j, int w)
+{
+	add_edge_nbrlist(&((*g).top), i, j);
+	add2array_int(&((*g).edge_wts.e[i]), w);
+	add2array_int(&((*g).edge_wts.e[j]), w);
+}
+
+void extend_edge_wtd_graph(edge_wtd_graph *g)
+{
+	extend_nbrlist(&((*g).top));
+	extend_aarray_int(&((*g).edge_wts));
+}
+
+void remove_edges_vertex_edge_wtd_graph(edge_wtd_graph *g, int i)
+{
+	for (int ni = 0; ni < (*g).top.v.e[i].len; ni++)
+	{
+		int ii = (*g).top.v.e[i].e[ni];
+		int i_i_ii = (*g).top.i_of.e[i].e[ni];
+		remove_array_int(&((*g).edge_wts.e[ii]), i_i_ii);
+	}
+	remove_edges_vertex_nbrlist(&((*g).top), i);
+	(*g).edge_wts.e[i].len = 0;
+}
+
+void remove_vertex_edge_wtd_graph(edge_wtd_graph *g, int i)
+{
+	for (int ni = 0; ni < (*g).top.v.e[i].len; ni++)
+	{
+		int ii = (*g).top.v.e[i].e[ni];
+		int i_i_ii = (*g).top.i_of.e[i].e[ni];
+		remove_array_int(&((*g).edge_wts.e[ii]), i_i_ii);
+	}
+	remove_vertex_nbrlist(&((*g).top), i);
+	remove_aarray_int(&((*g).edge_wts), i);
+}
+
+void edge_wtd_graph_merge(edge_wtd_graph *g, int i, int j)
+{
+	for (int ni = 0; ni < (*g).top.v.e[i].len; ni++)
+	{
+		int ii = (*g).top.v.e[i].e[ni];
+		if (ii != j) {}
+		else continue;
+		int nj = add_edge_edge_wtd_graph_safe(g, j, ii, (*g).edge_wts.e[i].e[ni]);
+		if (nj > -1)
+		{
+			int i_j_ii = (*g).top.i_of.e[j].e[nj];
+			(*g).edge_wts.e[j].e[nj] += (*g).edge_wts.e[i].e[ni];
+			(*g).edge_wts.e[ii].e[i_j_ii] += (*g).edge_wts.e[i].e[ni];
+		}
+	}
+	remove_vertex_edge_wtd_graph(g, i);
+}
+
+// Methods for contracted neighbor lists RESUME: test these! (contr_nbrlist)
+// 	
+void contr_nbrlist_init(contr_nbrlist *cnb, nbrlist *top, aarray_int *wts)
+{
+	(*cnb).prec = top;
+	//edge_wtd_graph_init(&((*cnb).top), (*top).v.len);
+	transcribe_nbrlist(top, &((*cnb).top.top));
+	if (wts != NULL) transcribe_aarray_int(wts, &((*cnb).top.edge_wts));
+	else
+	{
+		// Initialize edge_wts to have unit weight for each edge
+		aarray_int_init(&((*cnb).top.edge_wts), (*top).v.len);
+		for (int i = 0; i < (*top).v.len; i++)
+		{
+			array_int wts_i;
+			array_int_init(&wts_i, (*top).v.e[i].len);
+			wts_i.len = (*top).v.e[i].len;
+			for (int ni = 0; ni < (*top).v.e[i].len; ni++) wts_i.e[ni] = 1;
+			add2aarray_int(&((*cnb).top.edge_wts), wts_i);
+		}
+	}
+	aarray_int_init(&((*cnb).fibers), (*top).v.len);
+	array_int_init(&((*cnb).fiber_addr), (*top).v.len);
+	array_int_init(&((*cnb).map), (*top).v.len);
+	for (int i = 0; i < (*top).v.len; i++)
+	{
+		add2array_int(&((*cnb).map), i);
+		add2array_int(&((*cnb).fiber_addr), 0);
+		extend_aarray_int(&((*cnb).fibers));
+		add2array_int(&((*cnb).fibers.e[i]), i);
+	}
+}
+
+void free_contr_nbrlist(contr_nbrlist *cnb)
+{
+	free_edge_wtd_graph(&((*cnb).top));
+	free_aarray_int(&((*cnb).fibers));
+	free_array_int(&((*cnb).fiber_addr));
+	free_array_int(&((*cnb).map));
+}
+
+void transcribe_contr_nbrlist(contr_nbrlist *src, contr_nbrlist *dest)
+{
+	transcribe_edge_wtd_graph(&((*src).top), &((*dest).top));
+	transcribe_aarray_int(&((*src).fibers), &((*dest).fibers));
+	(*dest).prec = (*src).prec;
+	transcribe_array_int(&((*src).map), &((*dest).map));
+	transcribe_array_int(&((*src).fiber_addr), &((*dest).fiber_addr));
+}
+
+char contr_nbrlist_fiber_corresp(contr_nbrlist *cnb1, contr_nbrlist *cnb2, array_int *pvs)
+{
+	printf("contr_nbrlist_fiber_corresp:\n");
+	if (pvs != NULL) {}
+	else return contr_nbrlist_vertex_corresp(cnb1, cnb2);
+	// Check that the correspondence associated with the pvs vertices is well defined
+	int corresp[(*cnb1).top.top.v.len];
+	char match = 1;
+	for (int ci = 0; ci < (*cnb1).top.top.v.len; ci++) corresp[ci] = -1;
+	for (int pi = 0; pi < (*pvs).len; pi++)
+	{
+		int i = (*pvs).e[pi];
+		int ci1 = (*cnb1).map.e[i];
+		int ci2 = (*cnb2).map.e[i];
+		if (corresp[ci1] == -1)
+		{
+			if ((*cnb1).fibers.e[ci1].len == (*cnb2).fibers.e[ci2].len) {}
+			else 
+			{
+				match = 0;
+				break;
+			}
+			corresp[ci1] = ci2;
+		}
+		else
+		{
+			if (corresp[ci1] == ci2) {}
+			else 
+			{
+				match = 0;
+				break;
+			}
+		}
+	}
+	printf("(done)\n");
+	return match;
+}
+
+char contr_nbrlist_vertex_corresp(contr_nbrlist *cnb1, contr_nbrlist *cnb2)
+{
+	printf("contr_nbrlist_vertex_corresp:\n");
+	char match = 1;
+	// This presumes that (*cnb1).prec is equivalent to (*cnb2).prec
+	if ((*(*cnb1).prec).v.len == (*(*cnb2).prec).v.len) {}
+	else match = 0;
+	if ((*cnb1).top.top.v.len == (*cnb2).top.top.v.len) {}
+	else match = 0;
+	if (match)
+	{
+		int corresp[(*cnb1).top.top.v.len];
+		for (int ci = 0; ci < (*cnb1).top.top.v.len; ci++) 
+		{
+			corresp[ci] = -1;
+			int ri = (*cnb1).fibers.e[ci].e[0];
+			int cii = (*cnb2).map.e[ri];
+			if ((*cnb1).fibers.e[ci].len == (*cnb2).fibers.e[cii].len) {}
+			else
+			{
+				match = 0;
+				break;
+			}
+		}
+		if (match)
+		{
+			for (int i = 0; i < (*(*cnb1).prec).v.len; i++) 
+			{
+				int ci1 = (*cnb1).map.e[i];
+				int ci2 = (*cnb2).map.e[i];
+				if (corresp[ci1] == -1) corresp[ci1] = ci2;
+				else if (corresp[ci1] == ci2) {}
+				else
+				{
+					match = 0;
+					break;
+				}
+			}
+		}
+	}
+	printf("(done)\n");
+	return match;
+}
+
+// RESUME: Test this!
+void contr_nbrlist_expand(contr_nbrlist *cnb, int ci, aarray_int *wts)
+{
+	array_int old_fiber = (*cnb).fibers.e[ci];
+	array_int new_fiber;
+	array_int_init(&new_fiber, 1);
+	new_fiber.len = 1;
+	new_fiber.e[0] = old_fiber.e[0];
+	(*cnb).fibers.e[ci] = new_fiber;
+	int init_len = (*cnb).fibers.len;
+	for (int fi = 1; fi < old_fiber.len; fi++)
+	{
+		int i = old_fiber.e[fi];
+		extend_edge_wtd_graph(&((*cnb).top));
+		array_int fiber_i;
+		array_int_init(&fiber_i, 1);
+		add2array_int(&fiber_i, i);
+		(*cnb).map.e[i] = (*cnb).fibers.len;
+		(*cnb).fiber_addr.e[i] = 0;
+		add2aarray_int(&((*cnb).fibers), fiber_i);
+	}
+	for (int fi = 1; fi < old_fiber.len; fi++)
+	{
+		int j = old_fiber.e[fi];
+		int cj = (*cnb).map.e[j];
+		for (int ni = 0; ni < (*(*cnb).prec).v.e[j].len; ni++)
+		{
+			int ii = (*(*cnb).prec).v.e[j].e[ni];
+			int cii = (*cnb).map.e[ii];
+			int wt = wts != NULL ? (*wts).e[j].e[ni] : 1;
+			if (cii >= init_len)
+			{
+				if (cii < cj) add_edge_edge_wtd_graph(&((*cnb).top), cj, cii, wt);
+			}
+			else if (cii != ci)
+			{
+				int njii = add_edge_edge_wtd_graph_safe(&((*cnb).top), cj, cii, wt);
+				if (njii > -1)
+				{
+					int i_j_ii = (*cnb).top.top.i_of.e[j].e[njii];
+					(*cnb).top.edge_wts.e[j].e[njii] += wt;
+					(*cnb).top.edge_wts.e[ii].e[i_j_ii] += wt;
+				}
+			}
+		}
+	}
+	//remove_aarray_int(&((*cnb).fibers), ci);
+	free_array_int(&old_fiber);
+	/*if ((*cnb).fibers.len > ci)
+	{
+		for (int fi = 0; fi < (*cnb).fibers.e[ci].len; fi++) (*cnb).map.e[(*cnb).fibers.e[ci].e[fi]] = ci;
+	}*/
+
+	//remove_vertex_edge_wtd_graph(&((*cnb).top), ci);
+	remove_edges_vertex_edge_wtd_graph(&((*cnb).top), ci);
+	int ri = (*cnb).fibers.e[ci].e[0];
+	for (int ni = 0; ni < (*(*cnb).prec).v.e[ri].len; ni++)
+	{
+		int ii = (*(*cnb).prec).v.e[ri].e[ni];
+		int cii = (*cnb).map.e[ii];
+		int wt = wts != NULL ? (*wts).e[ri].e[ni] : 1;
+		if (cii >= init_len) add_edge_edge_wtd_graph(&((*cnb).top), ci, cii, wt);
+		else
+		{
+			int nii = add_edge_edge_wtd_graph_safe(&((*cnb).top), ci, cii, wt);
+			if (nii > -1)
+			{
+				int i_i_ii = (*cnb).top.top.i_of.e[ci].e[nii];
+				(*cnb).top.edge_wts.e[ci].e[nii] += wt;
+				(*cnb).top.edge_wts.e[cii].e[i_i_ii] += wt;
+			}
+		}
+	}
+}
+
+void contr_nbrlist_merge_cluster(contr_nbrlist *cnb, int ci, int cj)
+{
+	for (int fi = 0; fi < (*cnb).fibers.e[ci].len; fi++)
+	{
+		(*cnb).fiber_addr.e[(*cnb).fibers.e[ci].e[fi]] = (*cnb).fibers.e[cj].len;
+		add2array_int(&((*cnb).fibers.e[cj]), (*cnb).fibers.e[ci].e[fi]);
+		(*cnb).map.e[(*cnb).fibers.e[ci].e[fi]] = cj;
+	}
+	remove_aarray_int(&((*cnb).fibers), ci);
+	if (ci < (*cnb).fibers.len)
+	{
+		for (int fi = 0; fi < (*cnb).fibers.e[ci].len; fi++)
+		{
+			(*cnb).map.e[(*cnb).fibers.e[ci].e[fi]] = ci;
+		}
+	}
+	edge_wtd_graph_merge(&((*cnb).top), ci, cj);
+}
+
+void contr_nbrlist_merge(contr_nbrlist *cnb, int i, int j)
+{
+	int ci = (*cnb).map.e[i];
+	int cj = (*cnb).map.e[j];
+	contr_nbrlist_merge_cluster(cnb, ci, cj);
 }
 
 // Methods for dir_graph
@@ -2110,6 +2550,12 @@ void contract_array_double(array_double *a)
 	}
 }
 
+void fprintf_array_double(array_double *a, FILE *ofile)
+{
+	ofile = ofile != NULL ? ofile : stdout;
+	for (int i = 0; i < (*a).len; i++) fprintf(ofile, "%g ", (*a).e[i]);
+	fprintf(ofile, "\n");
+}
 
 void free_array_double(array_double *a)
 {
@@ -2360,6 +2806,13 @@ void contract_array_char(array_char *a)
 	}
 }
 
+void fprintf_array_char(array_char *a, FILE *ofile)
+{
+	ofile = ofile != NULL ? ofile : stdout;
+	for (int i = 0; i < (*a).len; i++) fprintf(ofile, "%d ", (*a).e[i]);
+	fprintf(ofile, "\n");
+}
+
 void free_array_char(array_char *a)
 {
 	if ((*a).mem > 0)
@@ -2606,6 +3059,45 @@ void remove_aarray_char(aarray_char *aa, int i)
 		printf("Error: attempting to remove non-existent aarray_char element %d of %d\n", i, (*aa).len);
 		exit(EXIT_FAILURE);
 	}
+}
+
+void fprintf_aarray_char(aarray_char *aa, FILE *ofile)
+{
+    if (ofile != NULL)
+    {
+      for (int i = 0; i < (*aa).len; i++)
+	{
+	  fprintf(ofile, "%d ", (*aa).e[i].len);
+	  for (int ii = 0; ii < (*aa).e[i].len; ii++) fprintf(ofile, "%d ", (*aa).e[i].e[ii]);
+	  fprintf(ofile, "\n");
+	}
+    }
+}
+
+void load_aarray_char(aarray_char *aa, char *fname)
+{
+  FILE *ifile = fopen(fname, "r");
+  if (ifile != NULL)
+    {
+      while (1)
+	{
+	  int n_elem;
+	  int status = fscanf(ifile, "%d", &n_elem);
+	  if (status != EOF)
+	    {
+	      int i = (*aa).len;
+	      extend_aarray_char(aa);
+	      for (int ni = 0; ni < n_elem; ni++)
+		{
+		  int ii;
+		  fscanf(ifile, "%d", &ii);
+		  add2array_char(&((*aa).e[i]), (char) ii);
+		}
+	    }
+	  else break;
+	}
+      fclose(ifile);
+    }
 }
 
 void free_aarray_char(aarray_char *aa)
@@ -3520,19 +4012,30 @@ double array_double_norm(double *e1, int len)
 	return sqrt(normsq);
 }
 
+void array_bit_int_init_zero(array_bit *abit, int length)
+{
+	array_int *data = (array_int *) calloc(1, sizeof(array_int));
+       	int N_ints = (length >> LG_BLOCK_SIZE_INT) + 1;
+	array_int_init(data, N_ints);
+	(*data).len = N_ints;
+	for (int i = 0; i < N_ints; i++) (*data).e[i] = 0;
+	(*abit).data = (void *) data;
+	(*abit).len = length;
+	(*abit).mem = ((*data).mem << LG_BLOCK_SIZE_INT);
+}
+
 // Methods for arrays of bits
 void array_bit_int_init(array_bit *abit, int length)
 {
 	array_int *data = (array_int *) calloc(1, sizeof(array_int));
-	int block_size = 8 * sizeof(int); 
-	array_int_init(data, length / block_size + 1);
+	int n_blocks = (length >> LG_BLOCK_SIZE_INT) + 1;
+	array_int_init(data, n_blocks);
+	(*data).len = n_blocks;
 	(*abit).data = (void *) data;
-	(*abit).block_size = block_size;
 	(*abit).len = 0;
-	(*abit).mem = block_size * (*data).mem;
+	(*abit).mem = ((*data).mem << LG_BLOCK_SIZE_INT);
 }
 
-// RESUME: check this!
 void add_mem_array_bit_int(array_bit *abit)
 {
 	add_mem_array_int((array_int *) (*abit).data);
@@ -3543,8 +4046,8 @@ void add2array_bit_int(array_bit *abit, char bit)
 {
 	if ((*abit).len != (*abit).mem) {}
 	else add_mem_array_bit_int(abit);
-	int addr = (*abit).len / (*abit).block_size;
-	int bit_addr = (*abit).len % (*abit).block_size;
+	int addr = ((*abit).len >> array_bit_int_lg_block_size);
+	int bit_addr = (*abit).len & array_bit_int_addr_mask;
 	array_int *data = (array_int *) (*abit).data;
 	if (bit == 0) (*data).e[addr] &= array_bit_int_cmasks[bit_addr];
 	else (*data).e[addr] |= array_bit_int_masks[bit_addr];
@@ -3558,7 +4061,7 @@ void array_bit_int_set(array_bit *abit, int bit_pos, char bit_val)
 	{
 		while ((*abit).mem <= bit_pos) add_mem_array_bit_int(abit);
 	}
-	int addr = bit_pos >> array_bit_int_lg_block_size;
+	int addr = (bit_pos >> array_bit_int_lg_block_size);
 	int bit_addr = bit_pos & array_bit_int_addr_mask;
 	array_int *data = (array_int *) (*abit).data;
 	if (bit_val == 0) (*data).e[addr] &= array_bit_int_cmasks[bit_addr];
@@ -3567,7 +4070,7 @@ void array_bit_int_set(array_bit *abit, int bit_pos, char bit_val)
 
 char array_bit_int_get(array_bit *abit, int bit_pos)
 {
-	int addr = bit_pos >> array_bit_int_lg_block_size;
+	int addr = (bit_pos >> array_bit_int_lg_block_size);
 	int bit_addr = bit_pos & array_bit_int_addr_mask;
 	array_int *data = (array_int *) (*abit).data;
 	return ((*data).e[addr] & array_bit_int_masks[bit_addr]) != 0;
@@ -4197,7 +4700,7 @@ void load_nbrlist(nbrlist *nbl, char *ifname)
 	}
 }
 
-void hash_table_int_init(hash_table_int *ht, int min_data_size, Uint64 min_elem_size)
+void hash_table_int_init(hash_table_int *ht, int min_data_size, basics_Uint64 min_elem_size)
 {
 	(*ht).largest_bin = 0;
 	(*ht).lg_data_len = 0;
@@ -4217,27 +4720,37 @@ void hash_table_int_init(hash_table_int *ht, int min_data_size, Uint64 min_elem_
 	(*ht).size_mask = (*ht).data.len - 1;
 	int lg_elem_size = (*ht).lg_data_len + 2;
 	lg_elem_size = lg_elem_size < 65 ? lg_elem_size : 64;
-	Uint64 elem_size = 1 << lg_elem_size;
+	basics_Uint64 elem_size = 1 << lg_elem_size;
 	while (elem_size < min_elem_size)
 	{
 		elem_size <<= 1;
 		lg_elem_size += 1;
 	}
 	(*ht).elem_mask = elem_size - 1;
+	//(*ht).elem_mask = elem_size - 1;
 	(*ht).gen_a = rand() & (*ht).elem_mask;
-	(*ht).gen_b = rand() & ((lg_elem_size << 1) - 1);
+	//(*ht).gen_b = rand() & ((*ht).elem_mask);
+	(*ht).gen_b = rand() & (*ht).elem_mask;
+	(*ht).gen_b |= 1;
+	(*ht).gen_a |= 1;
 	array_int_init(&((*ht).addr_0), 0);
 	array_int_init(&((*ht).addr_1), 0);
 	array_int_init(&((*ht).elem), 0);
+	array_voidstar_init(&((*ht).values), 0);
 	(*ht).n_bits_ignored = lg_elem_size - (*ht).lg_data_len;
 }
 
 // RESUME
-void free_hash_table_int(hash_table_int *ht)
+void free_hash_table_int(hash_table_int *ht, void (*free_value_func)(void *))
 {
 	free_array_int(&((*ht).addr_0));
 	free_array_int(&((*ht).addr_1));
 	free_array_int(&((*ht).elem));
+	if (free_value_func != NULL)
+	{
+		for (int i = 0; i < (*ht).values.len; i++) free_value_func((*ht).values.e[i]);
+	}
+	free_array_voidstar(&((*ht).values), NULL);
 	for (int i = 0; i < (*ht).data.len; i++)
 	{
 		if ((*ht).data.e[i] != NULL)
@@ -4249,6 +4762,7 @@ void free_hash_table_int(hash_table_int *ht)
 	free_array_voidstar(&((*ht).data), NULL);
 }
 
+// Resume: test this!
 void resize_hash_table_int(hash_table_int *ht, int new_min_size)
 {
 	hash_table_int htp;
@@ -4265,9 +4779,9 @@ void resize_hash_table_int(hash_table_int *ht, int new_min_size)
 	hash_table_int_init(&htp, new_min_size, (*ht).elem_mask);
 	for (int i = 0; i < (*ht).elem.len; i++)
 	{
-		add2hash_table_int(&htp, (*ht).elem.e[i]);
+		add2hash_table_int(&htp, (*ht).elem.e[i], (*ht).values.e[i]);
 	}
-	free_hash_table_int(ht);
+	free_hash_table_int(ht, NULL);
 	(*ht) = htp;
 }
 
@@ -4288,6 +4802,7 @@ void transcribe_hash_table_int(hash_table_int *src, hash_table_int *dest)
 	transcribe_array_int(&((*src).addr_0), &((*dest).addr_0));
 	transcribe_array_int(&((*src).addr_1), &((*dest).addr_1));
 	transcribe_array_int(&((*src).elem), &((*dest).elem));
+	transcribe_array_voidstar(&((*src).values), &((*dest).values));
 	(*dest).n_bits_ignored = (*src).n_bits_ignored;
 	(*dest).elem_mask = (*src).elem_mask;
 	(*dest).lg_elem_size = (*src).lg_elem_size;
@@ -4302,33 +4817,37 @@ int hash_table_int_map(hash_table_int *ht, int n)
 	return (((*ht).gen_a * n + (*ht).gen_b) & (*ht).elem_mask) >> (*ht).n_bits_ignored;
 }
 
-char query_hash_table_int(hash_table_int *ht, int n, int *addr_0, int *addr_1)
+char query_hash_table_int(hash_table_int *ht, int n, int *elem_addr, void **val)
 {
-	(*addr_0) = hash_table_int_map(ht, n);
-	(*addr_1) = -1;
-	if ((*ht).data.e[(*addr_0)] != NULL) {}
-	else	
-	{
-		return 0;
-	}
+	int addr_0 = hash_table_int_map(ht, n);
+	if ((*ht).data.e[addr_0] != NULL) {}
+	else return 0;
 	// Check if 'n' already exists in the hash table
-	array_int *ehn = (array_int *) (*ht).data.e[(*addr_0)];
+	array_int *ehn = (array_int *) (*ht).data.e[addr_0];
 	char present = 0;
 	for (int i = 0; i < (*ehn).len; i++)
 	{
 		if ((*ht).elem.e[(*ehn).e[i]] != n) {}
 		else
 		{
-			(*addr_1) = i;
+			(*elem_addr) = (*ehn).e[i];
 			present = 1;
+			if (val != NULL) (*val) = (*ht).values.e[(*ehn).e[i]];
 			break;
 		}
 	}
 	return present;
 }
 
-void add2hash_table_int(hash_table_int *ht, int n)
+// RESUME: include actual nontrivial data in both hash table implementations
+void add2hash_table_int(hash_table_int *ht, int n, void *data)
 {
+	if ((*ht).elem.len < ((*ht).data.len << 1)) {}
+	else
+	{
+		// resize the hash table
+		resize_hash_table_int(ht, ((*ht).data.len << 1));
+	}
 	int hash_n = hash_table_int_map(ht, n);
 	if ((*ht).data.e[hash_n] != NULL) {}
 	else
@@ -4356,50 +4875,60 @@ void add2hash_table_int(hash_table_int *ht, int n)
 		add2array_int(ehn, (*ht).elem.len);
 		(*ht).largest_bin = (*ehn).len < (*ht).largest_bin ? (*ht).largest_bin : (*ehn).len;
 		add2array_int(&((*ht).elem), n);
+		add2array_voidstar(&((*ht).values), data);
 	}
 }
 
-void remove_hash_table_int(hash_table_int *ht, int n)
+void remove_hash_table_int_exp(hash_table_int *ht, int elem_addr, void (*free_value_func)(void *))
 {
-	int addr_0, addr_1;
-	char present = query_hash_table_int(ht, n, &addr_0, &addr_1);
-	if (present)
+	int addr_0 = (*ht).addr_0.e[elem_addr];
+	array_int *ehn = (array_int *) (*ht).data.e[addr_0];
+	int addr_1 = (*ht).addr_1.e[elem_addr];
+	remove_array_int(ehn, addr_1);
+	if ((*ehn).len > addr_1)
 	{
-		array_int *ehn = (array_int *) (*ht).data.e[addr_0];
-		int index = (*ehn).e[addr_1];
-		remove_array_int(ehn, addr_1);
-		if ((*ehn).len > addr_1)
-		{
-			int index_p = (*ehn).e[addr_1];
-			int n_p = (*ht).elem.e[index_p];
-			(*ht).addr_1.e[index_p] = addr_1;
-		}
-		else if ((*ehn).len > 0) {}
-		else
-		{
-			free_array_int(ehn);
-			free((*ht).data.e[addr_0]);
-			(*ht).data.e[addr_0] = NULL;
-		}
-		remove_array_int(&((*ht).elem), index);
-		remove_array_int(&((*ht).addr_0), index);
-		remove_array_int(&((*ht).addr_1), index);
-		if ((*ht).elem.len > index)
-		{
-			int n_p = (*ht).elem.e[index];
-			int hash_n_p = (*ht).addr_0.e[index];
-			array_int *ehn_p = (array_int *) (*ht).data.e[hash_n_p];
-			(*ehn_p).e[(*ht).addr_1.e[index]] = index;
-		}
+		int index_p = (*ehn).e[addr_1];
+		int n_p = (*ht).elem.e[index_p];
+		(*ht).addr_1.e[index_p] = addr_1;
 	}
+	else if ((*ehn).len > 0) {}
+	else
+	{
+		free_array_int(ehn);
+		free((*ht).data.e[addr_0]);
+		(*ht).data.e[addr_0] = NULL;
+	}
+	remove_array_int(&((*ht).elem), elem_addr);
+	remove_array_voidstar(&((*ht).values), elem_addr, free_value_func);
+	remove_array_int(&((*ht).addr_0), elem_addr);
+	remove_array_int(&((*ht).addr_1), elem_addr);
+	if ((*ht).elem.len > elem_addr)
+	{
+		int n_p = (*ht).elem.e[elem_addr];
+		int hash_n_p = (*ht).addr_0.e[elem_addr];
+		array_int *ehn_p = (array_int *) (*ht).data.e[hash_n_p];
+		(*ehn_p).e[(*ht).addr_1.e[elem_addr]] = elem_addr;
+	}
+	if ((*ht).elem.len < ((*ht).data.len >> 2)) resize_hash_table_int(ht, ((*ht).data.len >> 1) - 1);
 }
 
-void transcribe_hash_table_int_str(hash_table_int_str *src, hash_table_int_str *dest)
+char remove_hash_table_int(hash_table_int *ht, int n, void (*free_value_func)(void *))
 {
-	(*dest).data_src = (*src).data_src;
+	void *val_addr;
+	int elem_addr;
+	char present = query_hash_table_int(ht, n, &elem_addr, &val_addr);
+	if (present) remove_hash_table_int_exp(ht, elem_addr, free_value_func); 
+	return present;
+}
+
+void transcribe_hash_table_int_str(hash_table_int_str *src, hash_table_int_str *dest, char copy_mode)
+{
+	(*dest).key_data_src = copy_mode == BASICS_H_OTHER ? (*src).key_data_src : &((*dest).elem);
 	(*dest).largest_bin = (*src).largest_bin;
 	(*dest).lg_data_len = (*src).lg_data_len;
 	array_voidstar_init(&((*dest).data), (*src).data.len);
+	array_voidstar_init(&((*dest).values), (*src).values.len);
+	(*dest).values.len = (*src).values.len;
 	(*dest).data.len = (*src).data.len;
 	for (int i = 0; i < (*src).data.len; i++)
 	{
@@ -4419,7 +4948,8 @@ void transcribe_hash_table_int_str(hash_table_int_str *src, hash_table_int_str *
 	transcribe_array_int(&((*src).addr_0), &((*dest).addr_0));
 	transcribe_array_int(&((*src).addr_1), &((*dest).addr_1));
 	transcribe_array_int(&((*src).lens), &((*dest).lens));
-	if ((*dest).data_src == BASICS_H_OTHER) transcribe_array_voidstar(&((*src).elem), &((*dest).elem));
+	transcribe_array_voidstar(&((*src).values), &((*dest).values));
+	if (copy_mode == BASICS_H_OTHER) transcribe_array_voidstar(&((*src).elem), &((*dest).elem));
 	else
 	{
 		array_voidstar_init(&((*dest).elem), (*src).elem.len);
@@ -4442,9 +4972,9 @@ int int_str_ht_size(hash_table_int_str *ht)
 	return (*ht).data.len;
 }
 
-void hash_table_int_str_init(hash_table_int_str *ht, int min_ht_size, Uint64 max_int_size, char src_mode)
+void hash_table_int_str_init(hash_table_int_str *ht, int min_ht_size, basics_Uint64 max_int_size, char src_mode)
 {
-	(*ht).data_src = src_mode;
+	(*ht).key_data_src = &((*ht).elem);
 	(*ht).largest_bin = 0;
 	(*ht).lg_data_len = 0;
 	int data_len = 1;
@@ -4473,11 +5003,12 @@ void hash_table_int_str_init(hash_table_int_str *ht, int min_ht_size, Uint64 max
 	array_int_init(&((*ht).addr_1), 0);
 	array_int_init(&((*ht).lens), 0);
 	array_voidstar_init(&((*ht).elem), 0);
+	array_voidstar_init(&((*ht).values), 0);
 }
 
-void free_hash_table_int_str(hash_table_int_str *ht)
+void free_hash_table_int_str(hash_table_int_str *ht, void (*free_value_func)(void *))
 {
-	if ((*ht).data_src == BASICS_H_SELF)
+	if ((*ht).key_data_src == &((*ht).elem))
 	{
 		for (int i = 0; i < (*ht).elem.len; i++)
 		{
@@ -4485,6 +5016,11 @@ void free_hash_table_int_str(hash_table_int_str *ht)
 		}
 	}
 	free_array_voidstar(&((*ht).elem), NULL);
+	if (free_value_func != NULL)
+	{
+		for (int i = 0; i < (*ht).values.len; i++) free_value_func((*ht).values.e[i]);
+	}
+	free_array_voidstar(&((*ht).values), NULL);
 	free_array_int(&((*ht).addr_0));
 	free_array_int(&((*ht).addr_1));
 	free_array_int(&((*ht).lens));
@@ -4500,108 +5036,166 @@ void free_hash_table_int_str(hash_table_int_str *ht)
 	free_array_voidstar(&((*ht).data), NULL);
 }
 
-// NOTE: consider storing actual elements in a separate, aggregated/global hash table
+char hash_table_int_str_self_srcd(hash_table_int_str *ht)
+{
+	return (*ht).key_data_src == &((*ht).elem);
+}
+
+void hash_table_int_str_transfer_exp(hash_table_int_str *ht0, int elem_addr, hash_table_int_str *ht1)
+{
+	void *src0 = (*ht0).key_data_src;
+	void *src1 = (*ht1).key_data_src;
+	(*ht0).key_data_src = NULL;
+	(*ht1).key_data_src = NULL;
+	add2hash_table_int_str(ht1, (int *) (*ht0).elem.e[elem_addr], (*ht0).lens.e[elem_addr], (*ht0).values.e[elem_addr]);
+	remove_hash_table_int_str_exp(ht0, elem_addr, NULL);
+	(*ht0).key_data_src = src0;
+	(*ht1).key_data_src = src1;
+}
+
+void hash_table_int_str_transfer(hash_table_int_str *ht0, int *key, int key_len, hash_table_int_str *ht1)
+{
+	void *val;
+	int elem_addr;
+	char present = query_hash_table_int_str(ht0, key, key_len, &elem_addr, &val); // NOTE: it might be simpler and possibly more efficient to set the 'elem' index instead of the table indices (addr_0/addr_1).
+	if (present) hash_table_int_str_transfer_exp(ht0, elem_addr, ht1); // RESUME: change this to refer to elem_addr
+}
+
+// NOTE: consider storing actual keys in a separate, aggregated/global hash table/set
 // and storing a simple reference in local instances. The advantage of this approach 
 // is that it would save memory with a relatively small cost in performance. Also,
-// performance losses could be offset to some extent (especially with larger polynomials)
+// performance losses could be offset to some extent (especially with larger strings)
 // by eliminating the need to allocate largish arrays.
 void resize_hash_table_int_str(hash_table_int_str *ht, int new_min_size)
 {
 	hash_table_int_str htp;
-	hash_table_int_str_init(&htp, new_min_size, (*ht).elem_mask, (*ht).data_src);
+	char copy_mode = (*ht).key_data_src == &((*ht).elem) ? BASICS_H_SELF : BASICS_H_OTHER;
+	hash_table_int_str_init(&htp, new_min_size, (*ht).elem_mask, BASICS_H_OTHER);
+	htp.key_data_src = (*ht).key_data_src;
+	//if (copy_mode == BASICS_H_OTHER) htp.key_data_src = (*ht).key_data_src;
 	for (int i = 0; i < (*ht).elem.len; i++)
 	{
 		int *ei = (int *) (*ht).elem.e[i];
 		int len_ei = (*ht).lens.e[i];
-		add2hash_table_int_str(&htp, ei, len_ei);
+		add2hash_table_int_str(&htp, ei, len_ei, (*ht).values.e[i]);
 	}
-	free_hash_table_int_str(ht);
+	if (copy_mode == BASICS_H_SELF) 
+	{
+		(*ht).key_data_src = NULL;
+	}
+	free_hash_table_int_str(ht, NULL);
 	(*ht) = htp;
+	if (copy_mode == BASICS_H_SELF)
+	{
+		(*ht).key_data_src = &((*ht).elem);
+	}
 }
 
-void add2hash_table_int_str(hash_table_int_str *ht, int *n, int len)
+void add2hash_table_int_str(hash_table_int_str *ht, int *n, int len, void *value)
 {
+	if ((*ht).elem.len < ((*ht).data.len << 1)) {}
+	else
+	{
+		resize_hash_table_int_str(ht, (*ht).elem.len); // this should increase the size of the data field to the next power of two greater than data.len
+	}
 	int hash_n = hash_table_int_str_map(ht, n, len);
-	if ((*ht).data.e[hash_n] != NULL) {}
+	char present = 0;
+	if ((*ht).data.e[hash_n] != NULL) 
+	{
+		array_int *ehn = (array_int *) (*ht).data.e[hash_n];
+		for (int i = 0; i < (*ehn).len; i++)
+		{
+			int index = (*ehn).e[i];
+			int *si = (int *) (*ht).elem.e[index];
+			int si_len = (*ht).lens.e[index];
+			if (si_len != len) {}
+			else
+			{
+				if (arr_int_comp(si, n, len) != 0) {}
+				else
+				{
+					present = 1;
+					break;
+				}
+			}
+		}
+	}
 	else
 	{
 		(*ht).data.e[hash_n] = (array_int *) calloc(1, sizeof(array_int));
 		array_int_init((array_int *) (*ht).data.e[hash_n], 1);
 	}
-	array_int *ehn = (array_int *) (*ht).data.e[hash_n];
-	char present = 0;
-	for (int i = 0; i < (*ehn).len; i++)
-	{
-		int index = (*ehn).e[i];
-		int *si = (int *) (*ht).elem.e[index];
-		int si_len = (*ht).lens.e[index];
-		if (si_len != len) {}
-		else
-		{
-			if (arr_int_comp(si, n, len) != 0) {}
-			else
-			{
-				present = 1;
-				break;
-			}
-		}
-	}
 	if (present) {}
 	else
 	{
+		array_int *ehn = (array_int *) (*ht).data.e[hash_n];
 		add2array_int(&((*ht).addr_0), hash_n);
 		add2array_int(&((*ht).addr_1), (*ehn).len);
 		add2array_int(ehn, (*ht).elem.len);
 		(*ht).largest_bin = (*ht).largest_bin > (*ehn).len ? (*ht).largest_bin : (*ehn).len;
-		if ((*ht).data_src == BASICS_H_SELF)
+		if ((*ht).key_data_src == &((*ht).elem))
 		{
 			int *n_ = (int *) calloc(len, sizeof(int));
 			for (int i = 0; i < len; i++) n_[i] = n[i];
 			add2array_voidstar(&((*ht).elem), n_);
 		}
-		else add2array_voidstar(&((*ht).elem), n);
+		else 
+		{
+			add2array_voidstar(&((*ht).elem), n);
+		}
+		add2array_voidstar(&((*ht).values), value);
 		add2array_int(&((*ht).lens), len);
 	}
 }
 
-void remove_hash_table_int_str(hash_table_int_str *ht, int *n, int len)
+void remove_hash_table_int_str_exp(hash_table_int_str *ht, int index, void (*free_value_func)(void *))
 {
-	int addr_0, addr_1;
-	int present = query_hash_table_int_str(ht, n, len, &addr_0, &addr_1);
+	int addr_0 = (*ht).addr_0.e[index];
+	int addr_1 = (*ht).addr_1.e[index];
+	array_int *ehn = (array_int *) (*ht).data.e[addr_0];
+	char check_largest_bin = (*ehn).len == (*ht).largest_bin;
+	remove_array_int(ehn, addr_1);
+	if ((*ehn).len > addr_1)
+	{
+		int index_p = (*ehn).e[addr_1];
+		(*ht).addr_1.e[index_p] = addr_1;
+	}
+	else if ((*ehn).len > 0) {}
+	else
+	{
+		free_array_int(ehn);
+		free((*ht).data.e[addr_0]);
+		(*ht).data.e[addr_0] = NULL;
+	}
+	remove_array_int(&((*ht).addr_1), index);
+	remove_array_int(&((*ht).addr_0), index);
+	remove_array_int(&((*ht).lens), index);
+	if ((*ht).key_data_src == &((*ht).elem))
+	{
+		free((int *) (*ht).elem.e[index]);
+	}
+	remove_array_voidstar(&((*ht).elem), index, NULL);
+	remove_array_voidstar(&((*ht).values), index, free_value_func);
+	if ((*ht).addr_0.len > index)
+	{
+		int hash_n_p = (*ht).addr_0.e[index];
+		int addr_1_p = (*ht).addr_1.e[index];
+		array_int *ehn_p = (array_int *) (*ht).data.e[hash_n_p];
+		(*ehn_p).e[addr_1_p] = index;
+	}
+}
+
+char remove_hash_table_int_str(hash_table_int_str *ht, int *n, int len, void (*free_value_func)(void *))
+{
+	void *val_addr;
+	int elem_addr;
+	int present = query_hash_table_int_str(ht, n, len, &elem_addr, &val_addr);
 	if (present)
 	{
-		array_int *ehn = (array_int *) (*ht).data.e[addr_0];
-		char check_largest_bin = (*ehn).len == (*ht).largest_bin;
-		int index = (*ehn).e[addr_1];
-		remove_array_int(ehn, addr_1);
-		if ((*ehn).len > addr_1)
-		{
-			int index_p = (*ehn).e[addr_1];
-			(*ht).addr_1.e[index_p] = addr_1;
-		}
-		else if ((*ehn).len > 0) {}
-		else
-		{
-			free_array_int(ehn);
-			free((*ht).data.e[addr_0]);
-			(*ht).data.e[addr_0] = NULL;
-		}
-		remove_array_int(&((*ht).addr_1), index);
-		remove_array_int(&((*ht).addr_0), index);
-		remove_array_int(&((*ht).lens), index);
-		if ((*ht).data_src == BASICS_H_SELF)
-		{
-			free((int *) (*ht).elem.e[index]);
-		}
-		remove_array_voidstar(&((*ht).elem), index, NULL);
-		if ((*ht).addr_0.len > index)
-		{
-			int hash_n_p = (*ht).addr_0.e[index];
-			int addr_1_p = (*ht).addr_1.e[index];
-			array_int *ehn_p = (array_int *) (*ht).data.e[hash_n_p];
-			(*ehn_p).e[addr_1_p] = index;
-		}
+		remove_hash_table_int_str_exp(ht, elem_addr, free_value_func); // RESUME: update remove_hash_table_int_str to accept 'elem_addr'
+		if ((*ht).elem.len < ((*ht).data.len >> 2)) resize_hash_table_int_str(ht, ((*ht).data.len >> 2));
 	}
+	return present;
 }
 
 int arr_int_comp(int *a, int *b, int len)
@@ -4609,12 +5203,15 @@ int arr_int_comp(int *a, int *b, int len)
 	return len > 0 ? (a[0] > b[0] ? 1 : (b[0] > a[0] ? -1 : arr_int_comp(&a[1], &b[1], len - 1))) : 0;
 }
 
-char query_hash_table_int_str(hash_table_int_str *ht, int *n, int len, int *addr0, int *addr1)
+char query_hash_table_int_str(hash_table_int_str *ht, int *n, int len, int *elem_addr, void **val)
 {
-	(*addr0) = hash_table_int_str_map(ht, n, len);
-	if ((*ht).data.e[(*addr0)] != NULL)
+	int addr0 = hash_table_int_str_map(ht, n, len);
+	//(*addr0) = hash_table_int_str_map(ht, n, len);
+	//if ((*ht).data.e[(*addr0)] != NULL)
+	if ((*ht).data.e[addr0] != NULL)
 	{
-		array_int *ehn = (array_int *) (*ht).data.e[(*addr0)];
+		//array_int *ehn = (array_int *) (*ht).data.e[(*addr0)];
+		array_int *ehn = (array_int *) (*ht).data.e[addr0];
 		for (int i = 0; i < (*ehn).len; i++)
 		{
 			int index = (*ehn).e[i];
@@ -4622,7 +5219,12 @@ char query_hash_table_int_str(hash_table_int_str *ht, int *n, int len, int *addr
 			{
 				if (arr_int_comp(n, (int *) (*ht).elem.e[index], len) == 0) 
 				{
-					(*addr1) = i;
+					//(*addr1) = i;
+					(*elem_addr) = (*ehn).e[i];
+					if (val != NULL)
+					{
+						(*val) = (*ht).values.e[index];
+					}
 					return 1;
 				}
 			}
@@ -4639,5 +5241,156 @@ int hash_table_int_str_map(hash_table_int_str *ht, int *n, int len)
 		a = ((*ht).str_gen_a * a + n[i]) & (*ht).elem_mask;
 	}
 	return ((a * (*ht).gen_a + (*ht).gen_b) & (*ht).elem_mask) >> (*ht).n_bits_ignored;
+}
+
+// Union find methods
+void union_find_init(union_find *uf, int size)
+{
+	array_int_init(&((*uf).membership), size);
+	array_int_init(&((*uf).cluster_addr), size);
+	array_int_init(&((*uf).cluster_size), size);
+	aarray_int_init(&((*uf).clusters), size);
+	(*uf).membership.len = size;
+	(*uf).cluster_size.len = size;
+	(*uf).cluster_addr.len = size;
+	for (int i = 0; i < size; i++)
+	{
+		(*uf).membership.e[i] = i;
+		extend_aarray_int(&((*uf).clusters));
+		(*uf).cluster_addr.e[i] = -1;
+		(*uf).cluster_size.e[i] = 1;
+	}
+}
+
+void free_union_find(union_find *uf)
+{
+	free_array_int(&((*uf).cluster_addr));
+	free_array_int(&((*uf).cluster_size));
+	free_array_int(&((*uf).membership));
+	free_aarray_int(&((*uf).clusters));
+}
+
+void union_find_merge_cluster(union_find *uf, int ci, int cj)
+{
+	if ((*uf).cluster_addr.e[ci] == -1 && (*uf).cluster_addr.e[cj] == -1) {}
+	else
+	{
+		printf("Error (union_find_merge_cluster): attempting to merge non-terminal points %d->%d->%d, %d->%d->%d\n", (*uf).cluster_addr.e[ci], ci, (*uf).membership.e[ci], (*uf).cluster_addr.e[cj], cj, (*uf).membership.e[cj]);
+		exit(EXIT_FAILURE);
+	}
+	if (ci != cj) {}
+	else return;
+	(*uf).membership.e[ci] = cj;
+	(*uf).cluster_addr.e[ci] = (*uf).clusters.e[cj].len;
+	add2array_int(&((*uf).clusters.e[cj]), ci);
+}
+
+void union_find_union(union_find *uf, int i, int j)
+{
+	int ci, cj;
+	int depth_ci = union_find_find(uf, i, &ci);
+	int depth_cj = union_find_find(uf, j, &cj);
+       	if (ci == cj) {}
+	else
+	{
+		int c_upper, c_lower;
+		if ((*uf).cluster_size.e[cj] <= (*uf).cluster_size.e[ci]) 
+		{
+			c_upper = ci;
+			c_lower = cj;
+		}
+		else 
+		{
+			c_upper = cj;
+			c_lower = ci;
+		}
+		union_find_merge_cluster(uf, c_lower, c_upper);
+		(*uf).cluster_size.e[c_upper] += (*uf).cluster_size.e[c_lower];
+	}
+}
+
+int union_find_find(union_find *uf, int i, int *ci)
+{
+	(*ci) = (*uf).membership.e[i];
+	if ((*ci) == i) return 0;
+	int addr_i = (*uf).cluster_addr.e[i];
+	if (addr_i > -1) {}
+	else
+	{
+		printf("Something weird happened! a;lsdja;lfa\n");
+		exit(EXIT_FAILURE);
+	}
+	remove_array_int(&((*uf).clusters.e[(*ci)]), addr_i);
+	if ((*uf).clusters.e[(*ci)].len > addr_i)
+	{
+		int j = (*uf).clusters.e[(*ci)].e[addr_i];
+		if ((*uf).membership.e[j] != j) {}
+		else
+		{
+			printf("Something weird happened! a;lsjkl;jjoawdk\n");
+			exit(EXIT_FAILURE);
+		}
+		(*uf).cluster_addr.e[j] = addr_i;
+	}
+	int depth = 1 + union_find_find(uf, (*ci), ci);
+	// change the membership of 'i' to (*ci), and add 'i' to the associated cluster
+	(*uf).cluster_addr.e[i] = (*uf).clusters.e[(*ci)].len;
+	add2array_int(&((*uf).clusters.e[(*ci)]), i);
+	return depth;
+}
+
+// RESUME: test these!
+int union_find_order_root(union_find *uf, int j)
+{
+	int c = 1;
+	for (int i = 0; i < (*uf).clusters.e[j].len; i++)
+	{
+		c += union_find_order_root(uf, (*uf).clusters.e[j].e[i]);
+	}
+	return c;
+}
+
+int union_find_order(union_find *uf, int i)
+{
+	int ci;
+	union_find_find(uf, i, &ci);
+	return (*uf).cluster_size.e[ci];
+	//return union_find_order_root(uf, ci);
+}
+
+// 'Bare-bones' routines
+
+void union_find_bb_init(array_int *uf, int size)
+{
+	array_int_init(uf, size);
+	(*uf).len = size;
+	for (int i = 0; i < size; i++) (*uf).e[i] = i;
+}
+
+void union_find_bb_union(array_int *uf, int i, int j)
+{
+	int ri, rj;
+	int di = union_find_bb_find(uf, i, &ri);
+	int dj = union_find_bb_find(uf, j, &rj);
+	if (ri != rj)
+	{
+		if (di <= dj) (*uf).e[ri] = (*uf).e[i] = rj;
+		else (*uf).e[rj] = (*uf).e[j] = ri;
+	}
+}
+
+int union_find_bb_find(array_int *uf, int i, int *ri)
+{
+	if ((*uf).e[i] != i)
+	{
+		int depth = union_find_bb_find(uf, (*uf).e[i], ri) + 1;
+		(*uf).e[i] = (*ri);
+		return depth;
+	}
+	else 
+	{
+		(*ri) = i;
+		return 0;
+	}
 }
 
