@@ -1994,7 +1994,7 @@ void transcribe_contr_nbrlist(contr_nbrlist *src, contr_nbrlist *dest)
 
 char contr_nbrlist_fiber_corresp(contr_nbrlist *cnb1, contr_nbrlist *cnb2, array_int *pvs)
 {
-	printf("contr_nbrlist_fiber_corresp:\n");
+  //	printf("contr_nbrlist_fiber_corresp:\n");
 	if (pvs != NULL) {}
 	else return contr_nbrlist_vertex_corresp(cnb1, cnb2);
 	// Check that the correspondence associated with the pvs vertices is well defined
@@ -2026,7 +2026,7 @@ char contr_nbrlist_fiber_corresp(contr_nbrlist *cnb1, contr_nbrlist *cnb2, array
 			}
 		}
 	}
-	printf("(done)\n");
+	//	printf("(done)\n");
 	return match;
 }
 
