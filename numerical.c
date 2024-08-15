@@ -2716,7 +2716,7 @@ double hexagon_prism_vol(double h0, double bh0, double bh1, double h1, double bh
 	return (triangle_prism_vol_intermediate(bh0, bh1, bh2, bx0, bx1, bx2) + triangle_prism_vol_intermediate(bh0, bh2, bh3, bx0, bx2, bx3) + triangle_prism_vol_intermediate(bh0, h0, bh3, bx0, x0, bx3) + triangle_prism_vol_intermediate(bh1, h1, bh2, bx1, x1, bx2)) / 6;
 }
 
-#include "aux/numerical_fubini_case_by_thickness.h"
+#include "_aux_/numerical_fubini_case_by_thickness.h"
 
 // Conventions for traversing plaquette vertices, as presented in plaq_xc and plaq_yc
 // double plaq_xc[9] = {x0, x1, x2, x2, x2, x1, x0, x0, x1};
