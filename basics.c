@@ -101,6 +101,47 @@ void remove_last_array_voidstar(array_voidstar *a, void (*free_elem)(void *))
     }
 }
 
+void insert_array_voidstar(array_voidstar *a, void *vptr, int n)
+{
+  if (n < (*a).len)
+  {
+     int initLen = (*a).len;
+     int lastIndex = initLen - 1;
+     add2array_voidstar(a, (*a).e[lastIndex]);
+     int i = initLen;
+     for (int im1 = lastIndex; im1 >= n; im1 -= 1)
+     {
+	(*a).e[i] = (*a).e[im1];
+        i = im1;
+     }
+     (*a).e[n] = vptr;
+  }
+}
+
+void remove_array_voidstar_sorted(array_voidstar *a, int n, void (*free_elem)(void *))
+{
+  if (n < (*a).len)
+    {
+      (*a).len -= 1;
+      if (free_elem != NULL)
+	{
+	  if ((*a).e[n] != NULL) 
+	    {
+	      free_elem((*a).e[n]);
+	      free((*a).e[n]); // RESUME: check consistency across other programs
+	    }
+	}
+      int im1 = n;
+      for (int i = im1 + 1; i <= (*a).len; i++)
+      {
+	(*a).e[im1] = (*a).e[i];
+	im1 = i;
+      }
+      (*a).e[(*a).len] = NULL;
+      if ((*a).len < ((*a).mem >> 2)) contract_array_voidstar(a, free_elem);
+    }
+}
+
 void remove_array_voidstar(array_voidstar *a, int n, void (*free_elem)(void *))
 {
   if (n < (*a).len)
@@ -307,6 +348,21 @@ void remove_last_array_int(array_int *a)
 {
   if ((*a).len > 0)
     {
+      (*a).len -= 1;
+      if ((*a).len < ((*a).mem >> 2)) contract_array_int(a);
+    }
+}
+
+void remove_array_int_sorted(array_int *a, int n)
+{
+  if (n < (*a).len && n > -1)
+    {
+      int im1 = n;
+      for (int i = n + 1; i < (*a).len; i++)
+	{
+	  (*a).e[im1] = (*a).e[i];
+	  im1 = i;
+	}
       (*a).len -= 1;
       if ((*a).len < ((*a).mem >> 2)) contract_array_int(a);
     }
@@ -985,8 +1041,9 @@ void load_aarray_double(aarray_double *aa, char *fname)
     }
 }
 
-void free_aarray_double(aarray_double *aa)
+void free_aarray_double(void *aav)
 {
+  aarray_double *aa = (aarray_double *) aav;
   if ((*aa).mem > 0)
     {
       int i = 0;
@@ -1276,8 +1333,9 @@ void remove_boxlist_elem_by_addr(boxlist *bl, int *box_index, int content_index)
 
 }
 
-void free_boxlist(boxlist *bl)
+void free_boxlist(void *blv)
 {
+  boxlist *bl = (boxlist *) blv;
   free_aarray_int(&((*bl).boxc));
   free_aarray_int(&((*bl).addr));
   free((*bl).m);
@@ -1428,8 +1486,9 @@ void remove_boxlist3D_elem_unflat(boxlist3D *bl, int i, int j, int k, int conten
   remove_boxlist3D_elem(bl, fi, content_index);
 }
 
-void free_boxlist3D(boxlist3D *bl)
+void free_boxlist3D(void *blv)
 {
+  boxlist3D *bl = (boxlist3D *) blv;
   free_aarray_int(&((*bl).addr));
   free_aarray_int(&((*bl).boxc));
 }
@@ -1514,8 +1573,9 @@ void remove_boxlist2D_elem_unflat(boxlist2D *bl, int i, int j, int content_index
   remove_boxlist2D_elem(bl, fi, content_index);
 }
 
-void free_boxlist2D(boxlist2D *bl)
+void free_boxlist2D(void *blv)
 {
+  boxlist2D *bl = (boxlist2D *) blv;
   free_aarray_int(&((*bl).addr));
   free_aarray_int(&((*bl).boxc));
 }
@@ -1864,8 +1924,9 @@ void write_nbrlist(nbrlist *nbl, char *ofname)
     }
 }
 
-void free_nbrlist(nbrlist *nbl)
+void free_nbrlist(void *nblv)
 {
+  nbrlist *nbl = (nbrlist *) nblv;
   free_aarray_int(&((*nbl).v));
   free_aarray_int(&((*nbl).i_of));
 }
@@ -2019,8 +2080,9 @@ void contr_nbrlist_init(contr_nbrlist *cnb, nbrlist *top, aarray_int *wts)
     }
 }
 
-void free_contr_nbrlist(contr_nbrlist *cnb)
+void free_contr_nbrlist(void *cnbv)
 {
+  contr_nbrlist *cnb = (contr_nbrlist *) cnbv;
   free_edge_wtd_graph(&((*cnb).top));
   free_aarray_int(&((*cnb).fibers));
   free_array_int(&((*cnb).fiber_addr));
@@ -2431,8 +2493,9 @@ void write_dir_graph(dir_graph *dgr, char *ofname)
     }
 }
 
-void free_dir_graph(dir_graph *dgr)
+void free_dir_graph(void *dgrv)
 {
+  dir_graph *dgr = (dir_graph *) dgrv;
   free_aarray_int(&((*dgr).out));
   free_aarray_int(&((*dgr).in));
   free_aarray_int(&((*dgr).i_of_oi));
@@ -2528,6 +2591,20 @@ void remove_last_array_double(array_double *a)
     }
 }
 
+void remove_array_double_sorted(array_double *a, int n)
+{
+  if (n < (*a).len)
+    {
+      (*a).len -= 1;
+      int im1 = n;
+      for (int i = n + 1; i <= (*a).len; i++)
+	{
+	  (*a).e[im1] = (*a).e[i];
+	}
+      if ((*a).len < ((*a).mem >> 2)) contract_array_double(a);
+    }
+}
+
 void remove_array_double(array_double *a, int n)
 {
   if (n < (*a).len)
@@ -2562,8 +2639,9 @@ void fprintf_array_double(array_double *a, FILE *ofile)
   fprintf(ofile, "\n");
 }
 
-void free_array_double(array_double *a)
+void free_array_double(void *av)
 {
+  array_double *a = (array_double *) av;
   if ((*a).mem > 0)
     {
       if ((*a).e != NULL) free((*a).e);
@@ -2785,6 +2863,21 @@ void remove_last_array_char(array_char *a)
     }
 }
 
+void remove_array_char_sorted(array_char *a, int n)
+{
+  if (n < (*a).len && n > -1)
+    {
+      (*a).len -= 1;
+      int im1 = n;
+      for (int i = n + 1; i <= (*a).len; i++)
+	{
+	  (*a).e[im1] = (*a).e[i];
+	  im1 = i;
+	}
+      if ((*a).len < ((*a).mem >> 2)) contract_array_char(a);
+    }
+}
+
 void remove_array_char(array_char *a, int n)
 {
   if (n < (*a).len)
@@ -2816,8 +2909,10 @@ void fprintf_array_char(array_char *a, FILE *ofile)
   fprintf(ofile, "\n");
 }
 
-void free_array_char(array_char *a)
+// Check this!
+void free_array_char(void *av)
 {
+  array_char *a = (array_char *) av;
   if ((*a).mem > 0)
     {
       if ((*a).e != NULL) free((*a).e);
@@ -3087,8 +3182,9 @@ void load_aarray_char(aarray_char *aa, char *fname)
     }
 }
 
-void free_aarray_char(aarray_char *aa)
+void free_aarray_char(void *aav)
 {
+  aarray_char *aa = (aarray_char *) aav;
   if ((*aa).mem > 0)
     {
       int i = 0;
@@ -4143,8 +4239,9 @@ void array_bit_int_or(array_bit *abit1, array_bit *abit2, array_bit *abit3)
 
 }
 
-void free_array_bit_int(array_bit *abit)
+void free_array_bit_int(void *abitv)
 {
+  array_bit *abit = (array_bit *) abitv;
   array_int *data = (array_int *) (*abit).data;
   free_array_int(data);
   free(data);
@@ -5248,8 +5345,9 @@ void union_find_init(union_find *uf, int size)
     }
 }
 
-void free_union_find(union_find *uf)
+void free_union_find(void *ufv)
 {
+  union_find *uf = (union_find *) ufv;
   free_array_int(&((*uf).cluster_addr));
   free_array_int(&((*uf).cluster_size));
   free_array_int(&((*uf).membership));
