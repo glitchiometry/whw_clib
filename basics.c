@@ -324,6 +324,21 @@ void add_mem_array_int_until(array_int *a, int i)
   (*a).e = ne;
 }
 
+void insert_array_int(array_int *a, int n, int j)
+{
+  if (j > -1 && j < (*a).len)
+    {
+      int i0 = (*a).len - 1;
+      add2array_int(a, (*a).e[i0]);
+      int i = i0;
+      for (int im1 = i0 - 1; im1 >= j; im1 -= 1)
+	{
+	  (*a).e[i] = (*a).e[im1];
+	}
+      (*a).e[j] = n; 
+    }
+}
+
 void add2array_int(array_int *a, int i)
 {
   if ((*a).len < (*a).mem) {}
@@ -2562,6 +2577,21 @@ void scale_array_double(array_double *a, double s)
   for (int i = 0; i < (*a).len; i++) (*a).e[i] *= s;
 }
 
+void insert_array_double(array_double *a, double n, int j)
+{
+  if (j > -1 && j < (*a).len)
+    {
+      int i0 = (*a).len - 1;
+      add2array_double(a, (*a).e[i0]);
+      int i = i0;
+      for (int im1 = i0 - 1; im1 >= j; im1 -= 1)
+	{
+	  (*a).e[i] = (*a).e[im1];
+	}
+      (*a).e[j] = n; 
+    }
+}
+
 void add2array_double(array_double *a, double i)
 {
   if ((*a).len < (*a).mem) {}
@@ -2837,6 +2867,21 @@ void append_array_char(array_char *a, char *buf, int len)
     {
       (*a).e[(*a).len] = buf[i];
       (*a).len += 1;
+    }
+}
+
+void insert_array_char(array_char *a, char c, int j)
+{
+  if (j > -1 && j < (*a).len)
+    {
+      int i0 = (*a).len - 1;
+      add2array_char(a, (*a).e[i0]);
+      int i = i0;
+      for (int im1 = i0 - 1; im1 >= j; im1 -= 1)
+	{
+	  (*a).e[i] = (*a).e[im1];
+	}
+      (*a).e[j] = c;
     }
 }
 
